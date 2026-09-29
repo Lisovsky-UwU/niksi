@@ -10,6 +10,7 @@ import {
   addExpense as apiAddExpense,
   deleteExpense as apiDeleteExpense,
   listExpenses,
+  updateExpense as apiUpdateExpense,
 } from '../api/expenses'
 import {
   deleteGreyZoneEntry as apiDeleteGreyZoneEntry,
@@ -26,12 +27,14 @@ import {
 } from '../api/income'
 import { getMonthSummary, setCarryover as apiSetCarryover } from '../api/months'
 import { listUsers } from '../api/users'
+import { CATEGORY_COLORS, categoryColorVar } from '../utils/categoryColors'
 import type {
   Category,
   CategoryCreateRequest,
   CategoryUpdateRequest,
   Expense,
   ExpenseCreateRequest,
+  ExpenseUpdateRequest,
   GreyZoneMonth,
   Income,
   IncomeEntry,
@@ -56,6 +59,17 @@ export const useBudgetStore = defineStore('budget', {
   }),
   getters: {
     userName: (state) => (userId: number) => state.users.find((u) => u.id === userId)?.display_name ?? '',
+    userById: (state) => (userId: number) => state.users.find((u) => u.id === userId) ?? null,
+    // Each category gets a coloured pencil by its place in the month's list, so neighbours
+    // never share a colour and a copied month keeps the same colours.
+    // A colour chosen by hand wins; otherwise one is picked by position.
+    categoryColor: (state) => (categoryId: number) => {
+      const chosen = state.categories.find((c) => c.id === categoryId)?.color
+      if (chosen) return categoryColorVar(chosen)
+      const ordered = [...state.categories].sort((a, b) => a.position - b.position || a.id - b.id)
+      const index = ordered.findIndex((c) => c.id === categoryId)
+      return index < 0 ? 'var(--muted)' : `var(--cat-${index % CATEGORY_COLORS.length})`
+    },
   },
   actions: {
     async loadForMonth(monthId: number) {
@@ -120,6 +134,19 @@ export const useBudgetStore = defineStore('budget', {
       const expense = await apiAddExpense(payload)
       this.expenses = [expense, ...this.expenses]
       await this.refreshSummary()
+    },
+
+    async editExpense(expenseId: number, payload: ExpenseUpdateRequest) {
+      const updated = await apiUpdateExpense(expenseId, payload)
+      this.expenses = this.expenses
+        .map((e) => (e.id === expenseId ? updated : e))
+        .sort((a, b) => (a.expense_date === b.expense_date ? b.id - a.id : b.expense_date.localeCompare(a.expense_date)))
+      await this.refreshSummary()
+    },
+
+    /** Keeps the people list in step after someone changes their name or picture. */
+    replaceUser(user: User) {
+      this.users = this.users.map((u) => (u.id === user.id ? user : u))
     },
 
     async removeExpense(expenseId: number) {

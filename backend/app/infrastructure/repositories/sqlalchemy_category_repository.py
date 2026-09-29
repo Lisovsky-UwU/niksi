@@ -3,7 +3,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.models import Category
+from app.domain.models import Category, CategoryColor
 from app.infrastructure.db.orm_models import CategoryORM
 from app.interfaces.repositories import CategoryRepository
 
@@ -22,8 +22,15 @@ class SqlAlchemyCategoryRepository(CategoryRepository):
         ).all()
         return [Category.model_validate(orm) for orm in orms]
 
-    def create(self, month_id: int, name: str, limit_amount: Decimal, position: int) -> Category:
-        orm = CategoryORM(month_id=month_id, name=name, limit_amount=limit_amount, position=position)
+    def create(
+        self,
+        month_id: int,
+        name: str,
+        limit_amount: Decimal,
+        position: int,
+        color: CategoryColor | None = None,
+    ) -> Category:
+        orm = CategoryORM(month_id=month_id, name=name, limit_amount=limit_amount, position=position, color=color)
         self._db.add(orm)
         self._db.commit()
         self._db.refresh(orm)
@@ -35,6 +42,8 @@ class SqlAlchemyCategoryRepository(CategoryRepository):
         name: str | None,
         limit_amount: Decimal | None,
         position: int | None,
+        color: CategoryColor | None = None,
+        clear_color: bool = False,
     ) -> Category:
         orm = self._db.get(CategoryORM, category_id)
         assert orm is not None
@@ -44,6 +53,10 @@ class SqlAlchemyCategoryRepository(CategoryRepository):
             orm.limit_amount = limit_amount
         if position is not None:
             orm.position = position
+        if clear_color:
+            orm.color = None
+        elif color is not None:
+            orm.color = color
         self._db.commit()
         self._db.refresh(orm)
         return Category.model_validate(orm)

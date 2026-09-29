@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 import { useBudgetStore } from '../stores/budget'
 import { formatMoney, formatShortDate, todayIso, toNumber } from '../utils/format'
 import ConfirmButton from './ConfirmButton.vue'
+import UserAvatar from './UserAvatar.vue'
 
 const auth = useAuthStore()
 const store = useBudgetStore()
@@ -93,7 +94,10 @@ function usedPercent(taken: string, limit: string): number {
     <ul class="people">
       <li v-for="person in perUser" :key="person.user_id" class="person" :class="{ over: toNumber(person.remaining) < 0 }">
         <div class="line">
-          <span class="name">{{ person.display_name }}</span>
+          <span class="name">
+            <UserAvatar :user="store.userById(person.user_id)" size="md" />
+            {{ person.display_name }}
+          </span>
           <span>
             <span class="num taken">{{ formatMoney(person.taken) }}</span>
             <span v-if="toNumber(person.limit) > 0" class="muted"> из <span class="num">{{ formatMoney(person.limit) }}</span></span>
@@ -108,6 +112,7 @@ function usedPercent(taken: string, limit: string): number {
 
     <ul v-if="store.greyZone.entries.length" class="entry-list">
       <li v-for="entry in store.greyZone.entries" :key="entry.id" class="entry">
+        <UserAvatar :user="store.userById(entry.user_id)" size="sm" />
         <span class="what">
           <span class="title">{{ entry.user_id === myId ? 'Вы' : store.userName(entry.user_id) }}</span>
           <span class="meta">{{ formatShortDate(entry.taken_date) }}</span>
@@ -172,11 +177,14 @@ function usedPercent(taken: string, limit: string): number {
 .line {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
 }
 
 .name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
   font-weight: 600;
 }
 
@@ -215,7 +223,8 @@ function usedPercent(taken: string, limit: string): number {
 
 .entry {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 2rem;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto 2rem;
+  column-gap: 0.75rem;
   align-items: center;
   gap: 0.75rem;
   padding: 0.35rem 0;

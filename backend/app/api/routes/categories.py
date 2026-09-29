@@ -37,7 +37,7 @@ def create_category(
     use_case: CreateCategoryUseCase = Depends(get_create_category_use_case),
     _current_user: User = Depends(get_current_user),
 ) -> Category:
-    return use_case.execute(month_id, payload.name, payload.limit_amount)
+    return use_case.execute(month_id, payload.name, payload.limit_amount, payload.color)
 
 
 @router.put("/categories/{category_id}", response_model=Category)
@@ -47,7 +47,11 @@ def update_category(
     use_case: UpdateCategoryUseCase = Depends(get_update_category_use_case),
     _current_user: User = Depends(get_current_user),
 ) -> Category:
-    return use_case.execute(category_id, payload.name, payload.limit_amount, payload.position)
+    clear_color = payload.color == "auto"
+    color = None if clear_color else payload.color
+    return use_case.execute(
+        category_id, payload.name, payload.limit_amount, payload.position, color, clear_color  # type: ignore[arg-type]
+    )
 
 
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)

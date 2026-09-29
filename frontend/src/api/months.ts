@@ -21,3 +21,7 @@ export function getMonthSummary(monthId: number) {
 export function setCarryover(monthId: number, amount: string | null) {
   return apiClient.put<Month>(`/months/${monthId}/carryover`, { amount }).then((r) => r.data)
 }
+
+export function setMonthStart(monthId: number, startDate: string) {
+  return apiClient.put<Month>(`/months/${monthId}/start`, { start_date: startDate }).then((r) => r.data)
+}

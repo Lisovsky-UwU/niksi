@@ -66,6 +66,7 @@ from app.use_cases.months import (
     GetMonthUseCase,
     ListMonthsUseCase,
     SetCarryoverUseCase,
+    SetMonthStartUseCase,
 )
 from app.use_cases.reconciliation import (
     CreateReconciliationUseCase,
@@ -83,7 +84,13 @@ from app.use_cases.savings import (
     UpdateSavingsPotUseCase,
 )
 from app.use_cases.summary import GetMonthSummaryUseCase
-from app.use_cases.users import ListUsersUseCase
+from app.use_cases.users import (
+    ChangeMyPasswordUseCase,
+    GetAvatarUseCase,
+    ListUsersUseCase,
+    SetMyAvatarUseCase,
+    UpdateMyProfileUseCase,
+)
 
 COOKIE_NAME = "access_token"
 
@@ -194,8 +201,33 @@ def get_set_carryover_use_case(month_repo: MonthRepository = Depends(get_month_r
     return SetCarryoverUseCase(month_repo)
 
 
+def get_set_month_start_use_case(month_repo: MonthRepository = Depends(get_month_repository)) -> SetMonthStartUseCase:
+    return SetMonthStartUseCase(month_repo)
+
+
 def get_list_users_use_case(user_repo: UserRepository = Depends(get_user_repository)) -> ListUsersUseCase:
     return ListUsersUseCase(user_repo)
+
+
+def get_update_my_profile_use_case(
+    user_repo: UserRepository = Depends(get_user_repository),
+) -> UpdateMyProfileUseCase:
+    return UpdateMyProfileUseCase(user_repo)
+
+
+def get_change_my_password_use_case(
+    user_repo: UserRepository = Depends(get_user_repository),
+    password_hasher: PasswordHasher = Depends(get_password_hasher),
+) -> ChangeMyPasswordUseCase:
+    return ChangeMyPasswordUseCase(user_repo, password_hasher)
+
+
+def get_set_my_avatar_use_case(user_repo: UserRepository = Depends(get_user_repository)) -> SetMyAvatarUseCase:
+    return SetMyAvatarUseCase(user_repo)
+
+
+def get_avatar_use_case(user_repo: UserRepository = Depends(get_user_repository)) -> GetAvatarUseCase:
+    return GetAvatarUseCase(user_repo)
 
 
 def get_list_categories_use_case(
@@ -232,14 +264,17 @@ def get_list_expenses_use_case(
 def get_add_expense_use_case(
     expense_repo: ExpenseRepository = Depends(get_expense_repository),
     category_repo: CategoryRepository = Depends(get_category_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
 ) -> AddExpenseUseCase:
-    return AddExpenseUseCase(expense_repo, category_repo)
+    return AddExpenseUseCase(expense_repo, category_repo, user_repo)
 
 
 def get_update_expense_use_case(
     expense_repo: ExpenseRepository = Depends(get_expense_repository),
+    category_repo: CategoryRepository = Depends(get_category_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
 ) -> UpdateExpenseUseCase:
-    return UpdateExpenseUseCase(expense_repo)
+    return UpdateExpenseUseCase(expense_repo, category_repo, user_repo)
 
 
 def get_delete_expense_use_case(

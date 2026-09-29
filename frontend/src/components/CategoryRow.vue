@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useBudgetStore } from '../stores/budget'
 import type { CategorySummary } from '../types/models'
 import { formatMoney, toNumber } from '../utils/format'
-import CategoryForm from './CategoryForm.vue'
+import CategoryForm, { type CategoryFormPayload } from './CategoryForm.vue'
 import ConfirmButton from './ConfirmButton.vue'
 
 const props = defineProps<{ summary: CategorySummary }>()
+const store = useBudgetStore()
 const emit = defineEmits<{
-  edit: [payload: { name: string; limit_amount: string }]
+  edit: [payload: CategoryFormPayload]
   remove: []
 }>()
 
@@ -19,18 +21,19 @@ const state = computed<'ok' | 'close' | 'over'>(() => {
   return 'ok'
 })
 
-function handleEdit(payload: { name: string; limit_amount: string }) {
+function handleEdit(payload: CategoryFormPayload) {
   emit('edit', payload)
   editing.value = false
 }
 </script>
 
 <template>
-  <li class="category-row" :class="`is-${state}`">
+  <li class="category-row" :class="`is-${state}`" :style="{ '--cat': store.categoryColor(summary.id) }">
     <CategoryForm
       v-if="editing"
       :initial-name="summary.name"
       :initial-limit="summary.limit_amount"
+      :initial-color="store.categories.find((c) => c.id === summary.id)?.color ?? null"
       submit-label="Сохранить"
       show-cancel
       @submit="handleEdit"
@@ -38,7 +41,7 @@ function handleEdit(payload: { name: string; limit_amount: string }) {
     />
     <template v-else>
       <div class="line">
-        <span class="name"><span class="name-text">{{ summary.name }}</span></span>
+        <span class="name"><span class="cat-mark">{{ summary.name }}</span></span>
         <span class="amounts">
           <span class="num spent">{{ formatMoney(summary.spent) }}</span>
           <span class="muted"> из </span>
@@ -46,6 +49,7 @@ function handleEdit(payload: { name: string; limit_amount: string }) {
         </span>
       </div>
 
+      <!-- Close to the limit, the line itself gets a highlighter stroke over it. -->
       <div class="bar" aria-hidden="true">
         <div class="bar-fill" :style="{ width: Math.min(summary.percent_used, 100) + '%' }" />
       </div>
@@ -56,6 +60,7 @@ function handleEdit(payload: { name: string; limit_amount: string }) {
         </span>
         <span v-else class="remaining">
           Осталось <span class="num">{{ formatMoney(summary.remaining) }}</span>
+          <span v-if="state === 'close'" class="visually-hidden">, лимит почти исчерпан</span>
         </span>
         <span class="actions">
           <button class="btn btn-quiet" type="button" @click="editing = true">Изменить</button>
@@ -85,15 +90,6 @@ function handleEdit(payload: { name: string; limit_amount: string }) {
   font-size: 1.05rem;
 }
 
-/* Highlighter swipe for categories close to their limit. */
-.is-close .name-text {
-  padding: 0 0.2em;
-  margin: 0 -0.2em;
-  background: linear-gradient(transparent 20%, var(--marker) 20%, var(--marker) 88%, transparent 88%);
-  color: var(--marker-text);
-  border-radius: 2px;
-}
-
 .spent {
   font-weight: 600;
 }
@@ -102,19 +98,29 @@ function handleEdit(payload: { name: string; limit_amount: string }) {
   color: var(--red);
 }
 
+/* The spending line is drawn in the category's own pencil. */
 .bar {
-  margin: 0.5rem 0 0.35rem;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line);
-  overflow: hidden;
+  margin: 0.6rem 0 0.45rem;
+  height: 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--cat) 16%, var(--line));
+  transition: box-shadow 0.2s;
 }
 
 .bar-fill {
   height: 100%;
-  background: var(--ink);
+  background: var(--cat);
   border-radius: inherit;
   transition: width 0.4s ease;
+}
+
+/* Close to the limit: a yellow highlighter stroke drawn over the line. */
+.is-close .bar {
+  box-shadow: 0 0 0 5px var(--marker-line);
+}
+
+.is-over .bar {
+  background: var(--red-wash);
 }
 
 .is-over .bar-fill {

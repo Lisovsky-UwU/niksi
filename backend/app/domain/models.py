@@ -21,6 +21,14 @@ class User(BaseModel):
     id: int
     email: str
     display_name: str
+    # Bumped on every new avatar so its URL changes and browsers can cache it forever.
+    # None when the person has no avatar.
+    avatar_version: int | None = None
+
+
+class Avatar(BaseModel):
+    content_type: str
+    data: bytes
 
 
 class UserCredentials(BaseModel):
@@ -39,8 +47,16 @@ class Month(BaseModel):
     id: int
     year: int
     month: int
+    # The budget period: from the day of the first full salary until the day before the
+    # next month starts (see app.domain.periods). end_date is None while no next month exists.
+    start_date: date
+    end_date: date | None = None
     # Set by hand for the first month or to correct the chain; otherwise the previous month's closing is used.
     carryover_override: Decimal | None = None
+
+
+# Coloured pencils a category can be marked with. None means "pick automatically by position".
+CategoryColor = Literal["orange", "teal", "violet", "green", "sky", "lilac", "ochre", "brown"]
 
 
 class Category(BaseModel):
@@ -51,6 +67,7 @@ class Category(BaseModel):
     name: str
     limit_amount: Decimal
     position: int = 0
+    color: CategoryColor | None = None
 
 
 class Expense(BaseModel):
@@ -62,6 +79,8 @@ class Expense(BaseModel):
     description: str | None = None
     expense_date: date
     created_by_user_id: int
+    # Who actually spent the money; may differ from who wrote it down.
+    spent_by_user_id: int
 
 
 class Income(BaseModel):

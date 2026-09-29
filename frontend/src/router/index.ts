@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useMonthsStore } from '../stores/months'
+import { currentMonth } from '../utils/periods'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -14,7 +15,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      // Lands on the current calendar month's dashboard if it already exists,
+      // Lands on the month whose budget period is running now if it exists,
       // otherwise falls back to History where the couple can create it.
       component: () => import('../views/HistoryView.vue'),
       beforeEnter: async () => {
@@ -22,12 +23,10 @@ const router = createRouter({
         if (!months.loaded) {
           await months.loadMonths()
         }
-        const now = new Date()
-        const year = now.getFullYear()
-        const month = now.getMonth() + 1
-        const current = months.months.find((m) => m.year === year && m.month === month)
+        // The month whose budget period today falls into, not the calendar month.
+        const current = currentMonth(months.months)
         if (current) {
-          return { name: 'dashboard', params: { year, month } }
+          return { name: 'dashboard', params: { year: current.year, month: current.month } }
         }
         return { name: 'history' }
       },
@@ -43,11 +42,16 @@ const router = createRouter({
           path: 'expenses',
           name: 'month-expenses',
           component: () => import('../components/ExpenseList.vue'),
-          props: { limit: 15 },
+          props: { limit: 15, filterable: true },
         },
         { path: 'income', name: 'month-income', component: () => import('../components/IncomePanel.vue') },
         { path: 'grey-zone', name: 'month-grey-zone', component: () => import('../components/GreyZonePanel.vue') },
       ],
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: () => import('../views/SettingsView.vue'),
     },
     {
       path: '/history',
@@ -60,6 +64,13 @@ const router = createRouter({
       children: [
         { path: '', name: 'money', component: () => import('../views/MoneyReconcile.vue') },
         { path: 'savings', name: 'money-savings', component: () => import('../components/SavingsSection.vue') },
+        { path: 'archive', name: 'money-archive', component: () => import('../components/SavingsArchive.vue') },
+        {
+          path: 'pots/:potId',
+          name: 'money-pot',
+          component: () => import('../views/SavingsPotView.vue'),
+          props: true,
+        },
       ],
     },
   ],

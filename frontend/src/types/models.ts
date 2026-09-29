@@ -6,14 +6,22 @@ export interface User {
   id: number
   email: string
   display_name: string
+  /** null when the person has no picture; bumps with every new one */
+  avatar_version: number | null
 }
 
 export interface Month {
   id: number
   year: number
   month: number
+  /** The budget period: from the first full salary until the day before the next month starts. */
+  start_date: string
+  /** null while there is no next month yet */
+  end_date: string | null
   carryover_override: string | null
 }
+
+export type CategoryColor = 'orange' | 'teal' | 'violet' | 'green' | 'sky' | 'lilac' | 'ochre' | 'brown'
 
 export interface Category {
   id: number
@@ -21,6 +29,8 @@ export interface Category {
   name: string
   limit_amount: string
   position: number
+  /** null: coloured automatically by position */
+  color: CategoryColor | null
 }
 
 export interface Expense {
@@ -30,6 +40,8 @@ export interface Expense {
   description: string | null
   expense_date: string
   created_by_user_id: number
+  /** who actually spent the money; may differ from who recorded it */
+  spent_by_user_id: number
 }
 
 /** Expected income for a month. What actually arrived is in IncomeEntry. */
@@ -183,17 +195,21 @@ export interface MonthCreateRequest {
   year: number
   month: number
   copy_categories_from_previous: boolean
+  start_date?: string
 }
 
 export interface CategoryCreateRequest {
   name: string
   limit_amount: string
+  color?: CategoryColor | null
 }
 
 export interface CategoryUpdateRequest {
   name?: string
   limit_amount?: string
   position?: number
+  /** 'auto' switches back to the automatic colour */
+  color?: CategoryColor | 'auto'
 }
 
 export interface ExpenseCreateRequest {
@@ -201,12 +217,16 @@ export interface ExpenseCreateRequest {
   amount: string
   description?: string | null
   expense_date: string
+  spent_by_user_id?: number
 }
 
 export interface ExpenseUpdateRequest {
   amount?: string
+  /** null erases the comment; leaving the key out keeps it */
   description?: string | null
   expense_date?: string
+  category_id?: number
+  spent_by_user_id?: number
 }
 
 export interface IncomeSetRequest {

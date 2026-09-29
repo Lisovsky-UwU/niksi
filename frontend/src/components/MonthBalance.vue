@@ -148,7 +148,6 @@ watch(summary, () => money.refreshBalance().catch(() => undefined))
 
 .line {
   --tone: var(--text);
-  --marker-strength: 24%;
   display: grid;
   grid-template-columns: 1.1rem minmax(0, 1fr) auto;
   align-items: baseline;
@@ -225,12 +224,6 @@ watch(summary, () => money.refreshBalance().catch(() => undefined))
   font-size: 0.8rem;
   font-style: italic;
   color: var(--muted);
-}
-
-@media (prefers-color-scheme: dark) {
-  .line {
-    --marker-strength: 34%;
-  }
 }
 
 /* The result sits under a double rule, like a total in an account book. */

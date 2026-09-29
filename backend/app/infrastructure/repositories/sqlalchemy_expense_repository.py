@@ -45,6 +45,7 @@ class SqlAlchemyExpenseRepository(ExpenseRepository):
         description: str | None,
         expense_date: date,
         created_by_user_id: int,
+        spent_by_user_id: int,
     ) -> Expense:
         orm = ExpenseORM(
             category_id=category_id,
@@ -52,6 +53,7 @@ class SqlAlchemyExpenseRepository(ExpenseRepository):
             description=description,
             expense_date=expense_date,
             created_by_user_id=created_by_user_id,
+            spent_by_user_id=spent_by_user_id,
         )
         self._db.add(orm)
         self._db.commit()
@@ -64,15 +66,22 @@ class SqlAlchemyExpenseRepository(ExpenseRepository):
         amount: Decimal | None,
         description: str | None,
         expense_date: date | None,
+        category_id: int | None = None,
+        set_description: bool = False,
+        spent_by_user_id: int | None = None,
     ) -> Expense:
         orm = self._db.get(ExpenseORM, expense_id)
         assert orm is not None
         if amount is not None:
             orm.amount = amount
-        if description is not None:
+        if set_description or description is not None:
             orm.description = description
+        if category_id is not None:
+            orm.category_id = category_id
         if expense_date is not None:
             orm.expense_date = expense_date
+        if spent_by_user_id is not None:
+            orm.spent_by_user_id = spent_by_user_id
         self._db.commit()
         self._db.refresh(orm)
         return Expense.model_validate(orm)

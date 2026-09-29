@@ -5,7 +5,18 @@ repositories map them to/from the Pydantic domain models in `app.domain.models`.
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, UniqueConstraint, func
+from sqlalchemy import (
+    Boolean,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    Numeric,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.infrastructure.db.base import Base
@@ -18,6 +29,10 @@ class UserORM(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(255))
     display_name: Mapped[str] = mapped_column(String(100))
+    # Small square image resized in the browser; deferred so it is only loaded when served.
+    avatar: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
+    avatar_content_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    avatar_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -28,6 +43,7 @@ class MonthORM(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     year: Mapped[int] = mapped_column(Integer)
     month: Mapped[int] = mapped_column(Integer)
+    start_date: Mapped[date] = mapped_column(Date)
     # Manually set carry-over from the previous month. None means "take the previous month's closing balance".
     carryover_override: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -44,6 +60,7 @@ class CategoryORM(Base):
     name: Mapped[str] = mapped_column(String(100))
     limit_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     position: Mapped[int] = mapped_column(Integer, default=0)
+    color: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     month: Mapped["MonthORM"] = relationship(back_populates="categories")
@@ -59,6 +76,7 @@ class ExpenseORM(Base):
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
     expense_date: Mapped[date] = mapped_column(Date)
     created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    spent_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     category: Mapped["CategoryORM"] = relationship(back_populates="expenses")

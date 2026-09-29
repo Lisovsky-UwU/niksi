@@ -1,4 +1,3 @@
-import calendar
 from datetime import date
 from decimal import Decimal
 
@@ -28,8 +27,9 @@ from app.interfaces.repositories import (
 
 
 def _month_bounds(month: Month) -> tuple[date, date]:
-    last_day = calendar.monthrange(month.year, month.month)[1]
-    return date(month.year, month.month, 1), date(month.year, month.month, last_day)
+    """The budget period, not the calendar month. The latest month is open-ended, so
+    anything dated after its start (savings moves, reconciliations) belongs to it."""
+    return month.start_date, month.end_date or date.max
 
 
 class GetMonthSummaryUseCase:

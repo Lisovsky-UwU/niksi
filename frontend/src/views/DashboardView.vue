@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import { getMonthByYearMonth } from '../api/months'
 import MonthCreateDialog from '../components/MonthCreateDialog.vue'
+import MonthPeriod from '../components/MonthPeriod.vue'
 import MonthSelector from '../components/MonthSelector.vue'
 import TabNav from '../components/TabNav.vue'
 import { useBudgetStore } from '../stores/budget'
@@ -72,6 +73,7 @@ watch([yearNumber, monthNumber], load)
     <div v-else-if="budgetStore.summary" class="month" :class="{ refreshing: loading }">
       <div class="month-head">
         <MonthSelector :current-year="yearNumber" :current-month="monthNumber" />
+        <MonthPeriod />
         <TabNav :tabs="tabs" label="Разделы месяца" />
       </div>
       <RouterView />

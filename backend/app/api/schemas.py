@@ -4,10 +4,11 @@
 
 from datetime import date
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.domain.models import SavingsPotKind, SavingsTransferDirection
+from app.domain.models import CategoryColor, SavingsPotKind, SavingsTransferDirection
 
 
 class LoginRequest(BaseModel):
@@ -19,17 +20,26 @@ class MonthCreateRequest(BaseModel):
     year: int = Field(ge=2000, le=2100)
     month: int = Field(ge=1, le=12)
     copy_categories_from_previous: bool = False
+    # The day the month's budget starts (first full salary); the 1st when omitted.
+    start_date: date | None = None
+
+
+class MonthStartRequest(BaseModel):
+    start_date: date
 
 
 class CategoryCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     limit_amount: Decimal = Field(ge=0)
+    color: CategoryColor | None = None
 
 
 class CategoryUpdateRequest(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)
     limit_amount: Decimal | None = Field(default=None, ge=0)
     position: int | None = Field(default=None, ge=0)
+    # Omitted: unchanged. "auto": back to the automatic colour.
+    color: CategoryColor | Literal["auto"] | None = None
 
 
 class ExpenseCreateRequest(BaseModel):
@@ -37,12 +47,27 @@ class ExpenseCreateRequest(BaseModel):
     amount: Decimal = Field(gt=0)
     description: str | None = Field(default=None, max_length=500)
     expense_date: date
+    # Who spent the money; defaults to whoever records it.
+    spent_by_user_id: int | None = None
 
 
 class ExpenseUpdateRequest(BaseModel):
+    """Only fields present in the request change; sending "description": null erases the comment."""
+
     amount: Decimal | None = Field(default=None, gt=0)
     description: str | None = Field(default=None, max_length=500)
     expense_date: date | None = None
+    category_id: int | None = None
+    spent_by_user_id: int | None = None
+
+
+class ProfileUpdateRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=100)
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=200)
 
 
 class IncomeSetRequest(BaseModel):

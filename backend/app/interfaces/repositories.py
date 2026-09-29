@@ -10,8 +10,10 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from app.domain.models import (
+    Avatar,
     CashFlows,
     Category,
+    CategoryColor,
     Expense,
     GreyZoneEntry,
     GreyZoneLimit,
@@ -41,6 +43,23 @@ class UserRepository(ABC):
     @abstractmethod
     def create(self, email: str, password_hash: str, display_name: str) -> User: ...
 
+    @abstractmethod
+    def get_credentials_by_id(self, user_id: int) -> UserCredentials | None: ...
+
+    @abstractmethod
+    def update_display_name(self, user_id: int, display_name: str) -> User: ...
+
+    @abstractmethod
+    def update_password_hash(self, user_id: int, password_hash: str) -> None: ...
+
+    @abstractmethod
+    def get_avatar(self, user_id: int) -> Avatar | None: ...
+
+    @abstractmethod
+    def set_avatar(self, user_id: int, avatar: Avatar | None) -> User:
+        """Stores a new avatar (bumping its version), or removes it when None."""
+        ...
+
 
 class MonthRepository(ABC):
     @abstractmethod
@@ -55,12 +74,20 @@ class MonthRepository(ABC):
         ...
 
     @abstractmethod
-    def list_all(self) -> list[Month]:
-        """All months, sorted newest first."""
+    def get_next(self, year: int, month: int) -> Month | None:
+        """Nearest existing month strictly after (year, month), or None."""
         ...
 
     @abstractmethod
-    def create(self, year: int, month: int) -> Month: ...
+    def list_all(self) -> list[Month]:
+        """All months, sorted newest first, each with its period end filled in."""
+        ...
+
+    @abstractmethod
+    def create(self, year: int, month: int, start_date: date) -> Month: ...
+
+    @abstractmethod
+    def set_start_date(self, month_id: int, start_date: date) -> Month: ...
 
     @abstractmethod
     def set_carryover_override(self, month_id: int, amount: Decimal | None) -> Month: ...
@@ -76,7 +103,14 @@ class CategoryRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, month_id: int, name: str, limit_amount: Decimal, position: int) -> Category: ...
+    def create(
+        self,
+        month_id: int,
+        name: str,
+        limit_amount: Decimal,
+        position: int,
+        color: CategoryColor | None = None,
+    ) -> Category: ...
 
     @abstractmethod
     def update(
@@ -85,7 +119,11 @@ class CategoryRepository(ABC):
         name: str | None,
         limit_amount: Decimal | None,
         position: int | None,
-    ) -> Category: ...
+        color: CategoryColor | None = None,
+        clear_color: bool = False,
+    ) -> Category:
+        """None leaves a field unchanged; `clear_color` switches the colour back to automatic."""
+        ...
 
     @abstractmethod
     def delete(self, category_id: int) -> None: ...
@@ -113,6 +151,7 @@ class ExpenseRepository(ABC):
         description: str | None,
         expense_date: date,
         created_by_user_id: int,
+        spent_by_user_id: int,
     ) -> Expense: ...
 
     @abstractmethod
@@ -122,7 +161,13 @@ class ExpenseRepository(ABC):
         amount: Decimal | None,
         description: str | None,
         expense_date: date | None,
-    ) -> Expense: ...
+        category_id: int | None = None,
+        set_description: bool = False,
+        spent_by_user_id: int | None = None,
+    ) -> Expense:
+        """None leaves a field unchanged; with `set_description` the description is
+        replaced even by None, so a comment can be erased."""
+        ...
 
     @abstractmethod
     def delete(self, expense_id: int) -> None: ...

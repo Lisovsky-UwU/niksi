@@ -225,3 +225,151 @@ def test_leftover_carries_over_to_next_month(client: TestClient, couple: dict[st
 def test_users_are_listed_for_both_partners(client: TestClient, couple: dict[str, int]) -> None:
     users = client.get("/api/users").json()
     assert [u["display_name"] for u in users] == ["Ник", "Половинка"]
+
+
+def test_category_colour_is_chosen_by_hand_and_travels_to_the_next_month(
+    client: TestClient, couple: dict[str, int]
+) -> None:
+    august = _month(client, 2026, 8)
+    food = client.post(
+        f"/api/months/{august}/categories", json={"name": "Продукты", "limit_amount": "30000", "color": "teal"}
+    ).json()
+    fun = _category(client, august, "Развлечения", "10000")
+    assert food["color"] == "teal"
+    assert client.get(f"/api/months/{august}/categories").json()[1]["color"] is None
+
+    assert client.put(f"/api/categories/{fun}", json={"color": "lilac"}).json()["color"] == "lilac"
+    # Other fields leave the colour alone; "auto" hands it back to automatic.
+    assert client.put(f"/api/categories/{fun}", json={"limit_amount": "12000"}).json()["color"] == "lilac"
+    assert client.put(f"/api/categories/{food['id']}", json={"color": "auto"}).json()["color"] is None
+    assert client.put(f"/api/categories/{fun}", json={"color": "red"}).status_code == 422
+
+    september = _month(client, 2026, 9, copy=True)
+    colours = {c["name"]: c["color"] for c in client.get(f"/api/months/{september}/categories").json()}
+    assert colours == {"Продукты": None, "Развлечения": "lilac"}
+
+
+def test_profile_name_password_and_avatar(client: TestClient, couple: dict[str, int]) -> None:
+    renamed = client.put("/api/users/me", json={"display_name": "  Никита  "})
+    assert renamed.json()["display_name"] == "Никита"
+    assert client.put("/api/users/me", json={"display_name": ""}).status_code == 422
+
+    wrong = client.put("/api/users/me/password", json={"current_password": "nope", "new_password": "new-secret-1"})
+    assert wrong.status_code == 409
+    assert client.put("/api/users/me/password", json={"current_password": "pw-nik", "new_password": "short"}).status_code == 422
+    changed = client.put("/api/users/me/password", json={"current_password": "pw-nik", "new_password": "new-secret-1"})
+    assert changed.status_code == 204
+    client.post("/api/auth/logout")
+    assert client.post("/api/auth/login", json={"email": "nik@example.com", "password": "pw-nik"}).status_code == 401
+    _login(client, "nik@example.com", "new-secret-1")
+
+    assert client.get("/api/auth/me").json()["avatar_version"] is None
+    picture = b"RIFF\x00\x00\x00\x00WEBPVP8 fake-image-bytes"
+    first = client.put("/api/users/me/avatar", content=picture, headers={"Content-Type": "image/webp"})
+    assert first.json()["avatar_version"] == 1
+    served = client.get(f"/api/users/{couple['nik']}/avatar")
+    assert served.content == picture and served.headers["content-type"] == "image/webp"
+    again = client.put("/api/users/me/avatar", content=picture, headers={"Content-Type": "image/png"})
+    assert again.json()["avatar_version"] == 2
+
+    too_big = client.put("/api/users/me/avatar", content=b"x" * (600 * 1024), headers={"Content-Type": "image/jpeg"})
+    assert too_big.status_code == 409
+    assert client.put("/api/users/me/avatar", content=b"<svg/>", headers={"Content-Type": "image/svg+xml"}).status_code == 409
+
+    assert client.delete("/api/users/me/avatar").json()["avatar_version"] is None
+    assert client.get(f"/api/users/{couple['nik']}/avatar").status_code == 404
+
+
+def test_expense_can_be_edited_including_category_and_comment(client: TestClient, couple: dict[str, int]) -> None:
+    september = _month(client, 2026, 9)
+    food = _category(client, september, "Продукты", "30000")
+    cafe = _category(client, september, "Кафе", "10000")
+    expense = client.post(
+        "/api/expenses",
+        json={"category_id": food, "amount": "900", "description": "Пятёрочка", "expense_date": "2026-09-05"},
+    ).json()
+
+    edited = client.put(
+        f"/api/expenses/{expense['id']}",
+        json={"category_id": cafe, "amount": "1250.50", "description": "Ужин в грузинском, взяли хинкали"},
+    ).json()
+    assert (edited["category_id"], edited["amount"], edited["expense_date"]) == (cafe, "1250.50", "2026-09-05")
+    assert edited["description"] == "Ужин в грузинском, взяли хинкали"
+
+    # Leaving the comment out keeps it; sending null erases it.
+    assert client.put(f"/api/expenses/{expense['id']}", json={"amount": "1300"}).json()["description"]
+    assert client.put(f"/api/expenses/{expense['id']}", json={"description": None}).json()["description"] is None
+
+    october = _month(client, 2026, 10)
+    other_month = _category(client, october, "Продукты", "30000")
+    assert client.put(f"/api/expenses/{expense['id']}", json={"category_id": other_month}).status_code == 409
+    spent = {c["id"]: c["spent"] for c in _summary(client, september)["categories"]}
+    assert spent == {food: "0", cafe: "1300.00"}
+
+
+def test_copying_categories_twice_does_not_duplicate_them(client: TestClient, couple: dict[str, int]) -> None:
+    august = _month(client, 2026, 8)
+    _category(client, august, "Продукты", "30000")
+    _category(client, august, "Кафе", "10000")
+    september = _month(client, 2026, 9)
+    _category(client, september, "продукты", "25000")  # added by hand, different case
+
+    first = client.post(f"/api/months/{september}/categories/copy-from-previous").json()
+    second = client.post(f"/api/months/{september}/categories/copy-from-previous").json()
+    assert [c["name"] for c in first] == ["Кафе"]
+    assert second == []
+    names = sorted(c["name"] for c in client.get(f"/api/months/{september}/categories").json())
+    assert names == ["Кафе", "продукты"]
+
+
+def test_month_is_a_period_from_the_first_full_salary(client: TestClient, couple: dict[str, int]) -> None:
+    september = client.post(
+        "/api/months", json={"year": 2026, "month": 9, "start_date": "2026-09-05"}
+    ).json()
+    assert (september["start_date"], september["end_date"]) == ("2026-09-05", None)
+
+    # October's salary came early, on 3 October; September now ends on 2 October.
+    october = client.post("/api/months", json={"year": 2026, "month": 10, "start_date": "2026-10-03"}).json()
+    months = {m["month"]: m for m in client.get("/api/months").json()}
+    assert months[9]["end_date"] == "2026-10-02"
+    assert months[10]["end_date"] is None
+
+    # A start may be in the previous calendar month, but months stay in order.
+    assert client.put(f"/api/months/{october['id']}/start", json={"start_date": "2026-09-28"}).status_code == 200
+    assert client.get("/api/months/2026/9").json()["end_date"] == "2026-09-27"
+    assert client.put(f"/api/months/{october['id']}/start", json={"start_date": "2026-09-05"}).status_code == 409
+    assert client.put(f"/api/months/{october['id']}/start", json={"start_date": "2026-08-31"}).status_code == 409
+    assert client.put(f"/api/months/{october['id']}/start", json={"start_date": "2026-11-01"}).status_code == 409
+    assert client.post("/api/months", json={"year": 2026, "month": 11}).json()["start_date"] == "2026-11-01"
+
+    # Savings moves and reconciliations are counted by period, not by calendar month.
+    client.put(f"/api/months/{october['id']}/start", json={"start_date": "2026-10-03"})
+    pot = client.post("/api/savings/pots", json={"name": "Вклад", "kind": "deposit"}).json()
+    for day in ("2026-10-01", "2026-10-04"):
+        client.post(
+            f"/api/savings/pots/{pot['id']}/transfers",
+            json={"direction": "in", "amount": "1000", "transfer_date": day},
+        )
+    assert _summary(client, september["id"])["balance"]["savings_net"] == "1000.00"
+    assert _summary(client, october["id"])["balance"]["savings_net"] == "1000.00"
+
+
+def test_expense_records_who_spent_the_money(client: TestClient, couple: dict[str, int]) -> None:
+    september = _month(client, 2026, 9)
+    food = _category(client, september, "Продукты", "30000")
+
+    mine = client.post(
+        "/api/expenses", json={"category_id": food, "amount": "500", "expense_date": "2026-09-05"}
+    ).json()
+    assert (mine["created_by_user_id"], mine["spent_by_user_id"]) == (couple["nik"], couple["nik"])
+
+    # Nik writes down what the partner spent.
+    theirs = client.post(
+        "/api/expenses",
+        json={"category_id": food, "amount": "700", "expense_date": "2026-09-05", "spent_by_user_id": couple["pair"]},
+    ).json()
+    assert (theirs["created_by_user_id"], theirs["spent_by_user_id"]) == (couple["nik"], couple["pair"])
+
+    moved = client.put(f"/api/expenses/{mine['id']}", json={"spent_by_user_id": couple["pair"]}).json()
+    assert moved["spent_by_user_id"] == couple["pair"]
+    assert client.put(f"/api/expenses/{mine['id']}", json={"spent_by_user_id": 999}).status_code == 404

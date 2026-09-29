@@ -5,7 +5,8 @@ import { getMonthSummary } from '../api/months'
 import MonthCreateDialog from '../components/MonthCreateDialog.vue'
 import { useMonthsStore } from '../stores/months'
 import type { Month, MonthSummary } from '../types/models'
-import { MONTH_NAMES, formatMoney, toNumber } from '../utils/format'
+import { MONTH_NAMES, formatMoney, formatShortDate, toNumber } from '../utils/format'
+import { isCurrent, periodOf } from '../utils/periods'
 
 const store = useMonthsStore()
 const router = useRouter()
@@ -13,8 +14,6 @@ const loading = ref(true)
 const showCreateDialog = ref(false)
 const summaries = ref(new Map<number, MonthSummary>())
 
-const now = new Date()
-const isCurrent = (m: Month) => m.year === now.getFullYear() && m.month === now.getMonth() + 1
 
 const years = computed(() => {
   const sorted = [...store.months].sort((a, b) => b.year * 12 + b.month - (a.year * 12 + a.month))
@@ -94,8 +93,13 @@ onMounted(async () => {
             :to="{ name: 'dashboard', params: { year: m.year, month: m.month } }"
           >
             <span class="name">
-              {{ MONTH_NAMES[m.month - 1] }}
-              <span v-if="isCurrent(m)" class="now">сейчас</span>
+              <span>
+                {{ MONTH_NAMES[m.month - 1] }}
+                <span v-if="isCurrent(m)" class="now">сейчас</span>
+              </span>
+              <span class="period">
+                {{ formatShortDate(periodOf(m).start) }} – {{ formatShortDate(periodOf(m).end) }}
+              </span>
             </span>
 
             <template v-if="stats(m)">
@@ -170,8 +174,16 @@ onMounted(async () => {
 }
 
 .name {
+  display: flex;
+  flex-direction: column;
   font-weight: 600;
   font-size: 1.05rem;
+}
+
+.period {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .now {

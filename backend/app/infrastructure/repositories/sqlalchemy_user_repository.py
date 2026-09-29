@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.models import User, UserCredentials
+from app.domain.models import Avatar, User, UserCredentials
 from app.infrastructure.db.orm_models import UserORM
 from app.interfaces.repositories import UserRepository
 
@@ -25,6 +25,47 @@ class SqlAlchemyUserRepository(UserRepository):
     def create(self, email: str, password_hash: str, display_name: str) -> User:
         orm = UserORM(email=email, password_hash=password_hash, display_name=display_name)
         self._db.add(orm)
+        self._db.commit()
+        self._db.refresh(orm)
+        return User.model_validate(orm)
+
+    def get_credentials_by_id(self, user_id: int) -> UserCredentials | None:
+        orm = self._db.get(UserORM, user_id)
+        return UserCredentials.model_validate(orm) if orm else None
+
+    def update_display_name(self, user_id: int, display_name: str) -> User:
+        orm = self._db.get(UserORM, user_id)
+        assert orm is not None
+        orm.display_name = display_name
+        self._db.commit()
+        self._db.refresh(orm)
+        return User.model_validate(orm)
+
+    def update_password_hash(self, user_id: int, password_hash: str) -> None:
+        orm = self._db.get(UserORM, user_id)
+        assert orm is not None
+        orm.password_hash = password_hash
+        self._db.commit()
+
+    def get_avatar(self, user_id: int) -> Avatar | None:
+        row = self._db.execute(
+            select(UserORM.avatar, UserORM.avatar_content_type).where(UserORM.id == user_id)
+        ).one_or_none()
+        if row is None or row.avatar is None or row.avatar_content_type is None:
+            return None
+        return Avatar(content_type=row.avatar_content_type, data=row.avatar)
+
+    def set_avatar(self, user_id: int, avatar: Avatar | None) -> User:
+        orm = self._db.get(UserORM, user_id)
+        assert orm is not None
+        if avatar is None:
+            orm.avatar = None
+            orm.avatar_content_type = None
+            orm.avatar_version = None
+        else:
+            orm.avatar = avatar.data
+            orm.avatar_content_type = avatar.content_type
+            orm.avatar_version = (orm.avatar_version or 0) + 1
         self._db.commit()
         self._db.refresh(orm)
         return User.model_validate(orm)

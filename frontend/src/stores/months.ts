@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { createMonth as apiCreateMonth, listMonths } from '../api/months'
+import { createMonth as apiCreateMonth, listMonths, setMonthStart as apiSetMonthStart } from '../api/months'
 import type { Month, MonthCreateRequest } from '../types/models'
 
 export const useMonthsStore = defineStore('months', {
@@ -14,7 +14,14 @@ export const useMonthsStore = defineStore('months', {
     },
     async createMonth(payload: MonthCreateRequest) {
       const month = await apiCreateMonth(payload)
-      this.months = [month, ...this.months]
+      // A new month closes the previous one's period, so reload everyone's end dates.
+      await this.loadMonths()
+      return month
+    },
+    /** Moving a start also moves the previous month's end, so the whole list is reloaded. */
+    async setStart(monthId: number, startDate: string) {
+      const month = await apiSetMonthStart(monthId, startDate)
+      await this.loadMonths()
       return month
     },
   },

@@ -53,9 +53,13 @@ watch(() => route.fullPath, revealActive)
   --fade: 2.5rem;
   display: flex;
   gap: 0.25rem;
+  /* Scrolls sideways only: a horizontal overflow would otherwise make the vertical axis
+     scrollable too, and a swipe along the tabs must not drag the page back and forth. */
   overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
-  padding: 0.25rem;
+  padding: 0.25rem 0.25rem 0;
   margin: 0 -0.25rem;
   border-bottom: 1px solid var(--line);
 }
@@ -90,8 +94,8 @@ watch(() => route.fullPath, revealActive)
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
+  /* The active underline sits right on the bar's bottom line, inside the scroll box. */
   border-bottom: 2px solid transparent;
-  margin-bottom: -0.3rem;
   transition: color 0.15s, border-color 0.15s;
 }
 

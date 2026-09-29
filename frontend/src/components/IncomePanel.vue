@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth'
 import { useBudgetStore } from '../stores/budget'
 import { formatMoney, formatShortDate, todayIso, toNumber } from '../utils/format'
 import ConfirmButton from './ConfirmButton.vue'
+import UserAvatar from './UserAvatar.vue'
 
 const auth = useAuthStore()
 const store = useBudgetStore()
@@ -105,7 +106,10 @@ function progress(actual: string, forecast: string): number {
     <ul class="people">
       <li v-for="person in perUser" :key="person.user_id" class="person">
         <div class="line">
-          <span class="name">{{ person.display_name }}</span>
+          <span class="name">
+            <UserAvatar :user="store.userById(person.user_id)" size="md" />
+            {{ person.display_name }}
+          </span>
           <span class="num amount">{{ formatMoney(person.actual) }}</span>
         </div>
         <div class="bar" aria-hidden="true">
@@ -145,6 +149,7 @@ function progress(actual: string, forecast: string): number {
       <h3 class="entries-title">Поступления</h3>
       <ul class="entry-list">
         <li v-for="entry in store.incomeEntries" :key="entry.id" class="entry">
+          <UserAvatar :user="store.userById(entry.user_id)" size="sm" />
           <span class="what">
             <span class="title">{{ entry.description || 'Доход' }}</span>
             <span class="meta">
@@ -212,11 +217,14 @@ function progress(actual: string, forecast: string): number {
 .line {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
 }
 
 .name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
   font-weight: 600;
 }
 
@@ -279,7 +287,8 @@ function progress(actual: string, forecast: string): number {
 
 .entry {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 2rem;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto 2rem;
+  column-gap: 0.75rem;
   align-items: center;
   gap: 0.75rem;
   padding: 0.4rem 0;

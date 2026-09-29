@@ -36,6 +36,7 @@ def add_expense(
         payload.description,
         payload.expense_date,
         current_user.id,
+        payload.spent_by_user_id,
     )
 
 
@@ -46,7 +47,15 @@ def update_expense(
     use_case: UpdateExpenseUseCase = Depends(get_update_expense_use_case),
     _current_user: User = Depends(get_current_user),
 ) -> Expense:
-    return use_case.execute(expense_id, payload.amount, payload.description, payload.expense_date)
+    return use_case.execute(
+        expense_id,
+        payload.amount,
+        payload.description,
+        payload.expense_date,
+        payload.category_id,
+        set_description="description" in payload.model_fields_set,
+        spent_by_user_id=payload.spent_by_user_id,
+    )
 
 
 @router.delete("/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)

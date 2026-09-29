@@ -23,11 +23,26 @@
   --margin: #e8a29c;
   --marker: #ffe872;
   --marker-text: #1c2233;
+  /* The highlighter stroke drawn over a category line close to its limit. */
+  --marker-line: #ffe14d;
+  /* How strongly coloured highlighter swipes are laid down. */
+  --marker-strength: 30%;
   /* Money set aside in savings: a pencil green, distinct from ink and red pen. */
   --green: #1d7a5c;
   --grey-zone: #6b6f80;
   /* Reconciliation differences: an amber pencil. */
   --amber: #a86f00;
+
+  /* Coloured pencils for categories, ordered so neighbours differ strongly.
+     Red (overspending) and ink blue (actions) are deliberately not in the box. */
+  --cat-0: #c8661a;
+  --cat-1: #13837c;
+  --cat-2: #7148b5;
+  --cat-3: #4c8a2a;
+  --cat-4: #2c78b5;
+  --cat-5: #a64aa0;
+  --cat-6: #a4850c;
+  --cat-7: #8a5a36;
 
   --font-ui: 'Golos Text Variable', 'Segoe UI', system-ui, sans-serif;
   --font-hand: 'Caveat', 'Segoe Print', cursive;
@@ -62,9 +77,19 @@
     --margin: #6b3431;
     --marker: #5e5114;
     --marker-text: #fff6c4;
+    --marker-line: rgba(255, 216, 61, 0.62);
+    --marker-strength: 40%;
     --green: #6fd3b0;
     --grey-zone: #a3a9ba;
     --amber: #e8b54d;
+    --cat-0: #f0a061;
+    --cat-1: #5fcdc4;
+    --cat-2: #b596f2;
+    --cat-3: #93cf6f;
+    --cat-4: #79b6ec;
+    --cat-5: #e391dd;
+    --cat-6: #e2c75c;
+    --cat-7: #cda27c;
 
     color-scheme: dark;
   }
@@ -322,7 +347,7 @@ input[type='checkbox'] {
   height: 1px;
 }
 
-.chip span {
+.chip > span {
   display: inline-block;
   padding: 0.35rem 0.8rem;
   border: 1px solid var(--line);
@@ -333,7 +358,7 @@ input[type='checkbox'] {
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
-.chip span:hover {
+.chip > span:hover {
   border-color: var(--ink);
 }
 
@@ -427,4 +452,33 @@ input[type='checkbox'] {
 .remove.is-armed {
   grid-column: 1 / -1;
   justify-self: end;
+}
+
+/* A category's mark: a highlighter swipe in its own pencil colour behind the name (set --cat). */
+.cat-mark {
+  padding: 0 0.2em;
+  margin: 0 -0.2em;
+  border-radius: 2px;
+  background: linear-gradient(
+    transparent 30%,
+    color-mix(in srgb, var(--cat, var(--muted)) var(--marker-strength), transparent) 30%,
+    color-mix(in srgb, var(--cat, var(--muted)) var(--marker-strength), transparent) 92%,
+    transparent 92%
+  );
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Category chips in the expense form carry the same colour as a wash. */
+.cat-chip > span {
+  background: color-mix(in srgb, var(--cat) var(--marker-strength), var(--sheet));
+  border-color: color-mix(in srgb, var(--cat) 45%, var(--line));
+}
+
+.cat-chip input:checked + span {
+  background: color-mix(in srgb, var(--cat) calc(var(--marker-strength) + 20%), var(--sheet));
+  border-color: var(--ink);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--ink);
 }

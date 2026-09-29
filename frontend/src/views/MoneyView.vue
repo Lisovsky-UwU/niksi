@@ -12,6 +12,7 @@ const loadError = ref('')
 const tabs = [
   { label: 'Сверка', to: { name: 'money' } },
   { label: 'Накопления', to: { name: 'money-savings' } },
+  { label: 'Архив', to: { name: 'money-archive' } },
 ]
 
 onMounted(async () => {

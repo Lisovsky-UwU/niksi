@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import UserAvatar from './components/UserAvatar.vue'
 import { useAuthStore } from './stores/auth'
 
 const auth = useAuthStore()
@@ -30,7 +31,10 @@ async function handleLogout() {
         <RouterLink to="/history" class="nav-link">Все месяцы</RouterLink>
       </nav>
       <div class="app-account">
-        <span class="app-user">{{ auth.user?.display_name }}</span>
+        <RouterLink to="/settings" class="app-user" aria-label="Настройки профиля" title="Настройки">
+          <UserAvatar :user="auth.user" size="md" />
+          <span class="app-user-name">{{ auth.user?.display_name }}</span>
+        </RouterLink>
         <button type="button" class="btn btn-quiet" @click="handleLogout">Выйти</button>
       </div>
     </header>
@@ -92,9 +96,20 @@ async function handleLogout() {
 }
 
 .app-user {
-  color: var(--muted);
-  padding-left: 0.75rem;
-  border-left: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.2rem 0.6rem 0.2rem 0.25rem;
+  border-radius: 999px;
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color 0.15s;
+}
+
+.app-user:hover,
+.app-user.router-link-active {
+  background: var(--ink-wash);
 }
 
 .app-main {
@@ -129,7 +144,7 @@ async function handleLogout() {
     padding-inline: 1rem;
   }
 
-  .app-user {
+  .app-user-name {
     display: none;
   }
 }

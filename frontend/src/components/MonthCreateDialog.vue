@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useMonthsStore } from '../stores/months'
 import type { Month } from '../types/models'
 import { MONTH_NAMES, monthLabel } from '../utils/format'
+import { allowedStartRange } from '../utils/periods'
 
 const props = defineProps<{ initialYear?: number; initialMonth?: number; showCancel?: boolean }>()
 const store = useMonthsStore()
@@ -27,6 +28,13 @@ const copyFromPrevious = ref(true)
 const error = ref('')
 const submitting = ref(false)
 
+// The month's budget starts on the day of the first full salary; the 1st until told otherwise.
+const range = computed(() => allowedStartRange(year.value, month.value))
+const startDate = ref(range.value.max.slice(0, 8) + '01')
+watch([year, month], () => {
+  startDate.value = range.value.max.slice(0, 8) + '01'
+})
+
 const exists = computed(() => store.months.some((m) => m.year === year.value && m.month === month.value))
 
 async function handleSubmit() {
@@ -41,10 +49,11 @@ async function handleSubmit() {
       year: year.value,
       month: month.value,
       copy_categories_from_previous: copyFromPrevious.value,
+      start_date: startDate.value,
     })
     emit('created', created)
   } catch {
-    error.value = 'Месяц не создался. Проверьте год и попробуйте ещё раз.'
+    error.value = 'Месяц не создался. Начало должно быть позже начала прошлого месяца и раньше следующего.'
   } finally {
     submitting.value = false
   }
@@ -65,6 +74,14 @@ async function handleSubmit() {
         <input v-model.number="year" type="number" min="2000" max="2100" required />
       </label>
     </div>
+    <label class="field">
+      Начало месяца
+      <input v-model="startDate" type="date" :min="range.min" :max="range.max" required />
+    </label>
+    <p class="hint muted">
+      День первой полной зарплаты. Месяц продлится до начала следующего, так что траты начала
+      следующего календарного месяца тоже могут попасть сюда.
+    </p>
     <label class="checkbox">
       <input v-model="copyFromPrevious" type="checkbox" />
       Перенести категории, лимиты, ожидаемый доход и серую зону из предыдущего месяца
@@ -95,6 +112,11 @@ async function handleSubmit() {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
   gap: 0.75rem;
+}
+
+.hint {
+  margin-top: -0.6rem;
+  font-size: 0.85rem;
 }
 
 .checkbox {

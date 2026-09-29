@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from app.domain.exceptions import NotFoundError
-from app.domain.models import Category
+from app.domain.models import Category, CategoryColor
 from app.interfaces.repositories import CategoryRepository, MonthRepository
 
 
@@ -18,11 +18,13 @@ class CreateCategoryUseCase:
         self._category_repo = category_repo
         self._month_repo = month_repo
 
-    def execute(self, month_id: int, name: str, limit_amount: Decimal) -> Category:
+    def execute(
+        self, month_id: int, name: str, limit_amount: Decimal, color: CategoryColor | None = None
+    ) -> Category:
         if self._month_repo.get_by_id(month_id) is None:
             raise NotFoundError(f"Month {month_id} not found")
         position = len(self._category_repo.list_by_month(month_id))
-        return self._category_repo.create(month_id, name, limit_amount, position)
+        return self._category_repo.create(month_id, name, limit_amount, position, color)
 
 
 class UpdateCategoryUseCase:
@@ -35,10 +37,12 @@ class UpdateCategoryUseCase:
         name: str | None,
         limit_amount: Decimal | None,
         position: int | None,
+        color: CategoryColor | None = None,
+        clear_color: bool = False,
     ) -> Category:
         if self._category_repo.get_by_id(category_id) is None:
             raise NotFoundError(f"Category {category_id} not found")
-        return self._category_repo.update(category_id, name, limit_amount, position)
+        return self._category_repo.update(category_id, name, limit_amount, position, color, clear_color)
 
 
 class DeleteCategoryUseCase:
@@ -65,8 +69,14 @@ class CopyCategoriesFromPreviousMonthUseCase:
         previous = self._month_repo.get_previous(target.year, target.month)
         if previous is None:
             return []
+        # Pressing "copy" twice, or after adding some categories by hand, must not
+        # create a second "Продукты": categories already in the month are skipped.
+        existing = {c.name.strip().casefold() for c in self._category_repo.list_by_month(target_month_id)}
         source_categories = self._category_repo.list_by_month(previous.id)
         return [
-            self._category_repo.create(target_month_id, category.name, category.limit_amount, category.position)
+            self._category_repo.create(
+                target_month_id, category.name, category.limit_amount, category.position, category.color
+            )
             for category in source_categories
+            if category.name.strip().casefold() not in existing
         ]

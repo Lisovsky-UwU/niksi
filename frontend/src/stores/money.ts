@@ -30,17 +30,21 @@ export const useMoneyStore = defineStore('money', {
   state: () => ({
     balance: null as BalanceStatus | null,
     reconciliations: [] as Reconciliation[],
+    /** Every pot, current and archived; the tabs pick theirs through the getters. */
     pots: [] as SavingsPot[],
     transfers: {} as Record<number, SavingsTransfer[]>,
-    showArchived: false,
     loaded: false,
   }),
+  getters: {
+    activePots: (state) => state.pots.filter((p) => !p.is_archived),
+    archivedPots: (state) => state.pots.filter((p) => p.is_archived),
+  },
   actions: {
     async load() {
       const [balance, reconciliations, pots] = await Promise.all([
         getBalance(),
         listReconciliations(),
-        listPots(this.showArchived),
+        listPots(true),
       ])
       this.balance = balance
       this.reconciliations = reconciliations
@@ -65,11 +69,6 @@ export const useMoneyStore = defineStore('money', {
       await this.refreshBalance()
     },
 
-    async setShowArchived(value: boolean) {
-      this.showArchived = value
-      this.pots = await listPots(value)
-    },
-
     async createPot(payload: SavingsPotCreateRequest) {
       const pot = await apiCreatePot(payload)
       this.pots = [...this.pots, pot]
@@ -77,9 +76,7 @@ export const useMoneyStore = defineStore('money', {
 
     async updatePot(potId: number, payload: SavingsPotUpdateRequest) {
       const pot = await apiUpdatePot(potId, payload)
-      this.pots = this.showArchived || !pot.is_archived
-        ? this.pots.map((p) => (p.id === potId ? pot : p))
-        : this.pots.filter((p) => p.id !== potId)
+      this.pots = this.pots.map((p) => (p.id === potId ? pot : p))
     },
 
     async deletePot(potId: number) {
@@ -110,7 +107,7 @@ export const useMoneyStore = defineStore('money', {
     },
 
     async refreshPots() {
-      this.pots = await listPots(this.showArchived)
+      this.pots = await listPots(true)
     },
   },
 })

@@ -1,10 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 import { useBudgetStore } from '../stores/budget'
 import { formatMoney, todayIso } from '../utils/format'
+import GrowingTextarea from './GrowingTextarea.vue'
+import PersonPicker from './PersonPicker.vue'
 
 const store = useBudgetStore()
+const auth = useAuthStore()
+// Who spent the money: whoever records it, unless they pick the other person.
+const spentBy = ref<number | null>(auth.user?.id ?? null)
 const route = useRoute()
 
 const categoryId = ref<number | null>(store.categories[0]?.id ?? null)
@@ -44,10 +50,12 @@ async function handleSubmit() {
       amount: amount.value,
       description: description.value.trim() || null,
       expense_date: expenseDate.value,
+      spent_by_user_id: spentBy.value ?? undefined,
     })
     lastSaved.value = `Записано: ${formatMoney(amount.value)} в «${categoryName}»`
     amount.value = ''
     description.value = ''
+    spentBy.value = auth.user?.id ?? null
   } catch {
     error.value = 'Трата не сохранилась. Проверьте сумму и попробуйте ещё раз.'
   } finally {
@@ -82,7 +90,12 @@ async function handleSubmit() {
 
       <fieldset class="chips">
         <legend class="visually-hidden">Категория</legend>
-        <label v-for="category in store.categories" :key="category.id" class="chip">
+        <label
+          v-for="category in store.categories"
+          :key="category.id"
+          class="chip cat-chip"
+          :style="{ '--cat': store.categoryColor(category.id) }"
+        >
           <input v-model="categoryId" type="radio" name="expense-category" :value="category.id" />
           <span>{{ category.name }}</span>
         </label>
@@ -94,16 +107,22 @@ async function handleSubmit() {
         </span>
       </p>
 
-      <div class="form-grid">
-        <label class="field date">
-          Дата
-          <input v-model="expenseDate" type="date" required />
-        </label>
-        <label class="field">
-          Комментарий
-          <input v-model="description" type="text" placeholder="Необязательно" maxlength="200" />
-        </label>
-      </div>
+      <PersonPicker
+        v-if="store.users.length > 1"
+        v-model="spentBy"
+        :users="store.users"
+        :me-id="auth.user?.id"
+        label="Кто потратил"
+        name="expense-spent-by"
+      />
+      <label class="field">
+        На что потратили
+        <GrowingTextarea v-model="description" placeholder="Необязательно: пара слов или пара предложений" />
+      </label>
+      <label class="field date">
+        Дата
+        <input v-model="expenseDate" type="date" required />
+      </label>
 
       <button class="btn btn-primary submit" type="submit" :disabled="submitting || !amount">
         {{ submitting ? 'Записываем…' : 'Записать' }}
@@ -186,6 +205,10 @@ async function handleSubmit() {
 
 .category-left .over {
   color: var(--red);
+}
+
+.date {
+  max-width: 12rem;
 }
 
 .submit {

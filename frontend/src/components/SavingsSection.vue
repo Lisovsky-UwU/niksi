@@ -1,17 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useMoneyStore } from '../stores/money'
 import type { SavingsPotKind } from '../types/models'
-import { formatMoney, toNumber } from '../utils/format'
+import { formatMoney, plural, toNumber } from '../utils/format'
 import SavingsPotItem from './SavingsPotItem.vue'
 
+// Current savings only; archived pots live on their own tab.
 const money = useMoneyStore()
 
-const accounts = computed(() => money.pots.filter((p) => p.kind !== 'goal'))
-const goals = computed(() => money.pots.filter((p) => p.kind === 'goal'))
-const total = computed(() =>
-  money.pots.filter((p) => !p.is_archived).reduce((sum, p) => sum + toNumber(p.balance), 0),
-)
+const accounts = computed(() => money.activePots.filter((p) => p.kind !== 'goal'))
+const goals = computed(() => money.activePots.filter((p) => p.kind === 'goal'))
+const total = computed(() => money.activePots.reduce((sum, p) => sum + toNumber(p.balance), 0))
 
 const creating = ref(false)
 const kind = ref<SavingsPotKind>('goal')
@@ -52,7 +52,7 @@ async function create() {
       <h2 id="savings-title">Накопления</h2>
       <button class="btn" type="button" :aria-expanded="creating" @click="creating = !creating">Новая копилка</button>
     </div>
-    <p v-if="money.pots.length" class="total">
+    <p v-if="money.activePots.length" class="total">
       Всего отложено <strong class="num">{{ formatMoney(total) }}</strong>
     </p>
 
@@ -92,7 +92,7 @@ async function create() {
       <p v-if="error" class="error-text" role="alert">{{ error }}</p>
     </form>
 
-    <p v-if="!money.pots.length && !creating" class="empty">
+    <p v-if="!money.activePots.length && !creating" class="empty">
       Заведите копилку для накопительного счёта или вклада, или цель: шкаф, машину, первый взнос по ипотеке.
       Отложенные деньги уходят из бюджета месяца и копятся здесь.
     </p>
@@ -111,14 +111,10 @@ async function create() {
       </ul>
     </template>
 
-    <label class="archived-toggle muted">
-      <input
-        type="checkbox"
-        :checked="money.showArchived"
-        @change="money.setShowArchived(($event.target as HTMLInputElement).checked)"
-      />
-      Показывать архив
-    </label>
+    <RouterLink v-if="money.archivedPots.length" :to="{ name: 'money-archive' }" class="archive-link">
+      В архиве {{ money.archivedPots.length }}
+      {{ plural(money.archivedPots.length, 'копилка', 'копилки', 'копилок') }}
+    </RouterLink>
   </section>
 </template>
 
@@ -171,12 +167,14 @@ async function create() {
   padding: 0;
 }
 
-.archived-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+.archive-link {
+  align-self: flex-start;
   margin-top: 0.5rem;
+  color: var(--muted);
   font-size: 0.9rem;
-  cursor: pointer;
+}
+
+.archive-link:hover {
+  color: var(--ink);
 }
 </style>

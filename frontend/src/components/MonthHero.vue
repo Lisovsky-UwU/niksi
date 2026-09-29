@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import type { MonthSummary } from '../types/models'
 import { formatAmount, formatMoney, monthIn, plural, toNumber } from '../utils/format'
+import { daysLeft } from '../utils/periods'
 import ExpenseForm from './ExpenseForm.vue'
 
 const props = defineProps<{ summary: MonthSummary }>()
@@ -29,18 +30,15 @@ const figure = computed(() => {
 
 const usedPercent = computed(() => (limit.value > 0 ? Math.min((spent.value / limit.value) * 100, 100) : 0))
 
-// Only meaningful while the month is still running: how much per day is left to spend.
+// Only meaningful while the month's period is running: how much per day is left to spend.
 const perDay = computed(() => {
   if (state.value !== 'ok') return null
-  const now = new Date()
-  const { year, month } = props.summary.month
-  if (now.getFullYear() !== year || now.getMonth() + 1 !== month) return null
-  const daysInMonth = new Date(year, month, 0).getDate()
-  const daysLeft = daysInMonth - now.getDate() + 1
+  const days = daysLeft(props.summary.month)
+  if (days === null) return null
   return {
-    days: daysLeft,
-    daysWord: plural(daysLeft, 'день', 'дня', 'дней'),
-    amount: Math.floor(left.value / daysLeft),
+    days,
+    daysWord: plural(days, 'день', 'дня', 'дней'),
+    amount: Math.floor(left.value / days),
   }
 })
 </script>

@@ -24,6 +24,9 @@ const next = computed(() =>
     : null,
 )
 
+// The dropdown lists the newest month first, going back in time.
+const newestFirst = computed(() => [...sortedMonths.value].reverse())
+
 // Stay on the same tab (expenses, income…) when switching months.
 function go(year: number, month: number) {
   const name = typeof route.name === 'string' && route.name.startsWith('month-') ? route.name : 'dashboard'
@@ -51,7 +54,7 @@ function handleChange(event: Event) {
     <label class="current">
       <span class="visually-hidden">Месяц</span>
       <select :value="`${props.currentYear}-${props.currentMonth}`" @change="handleChange">
-        <option v-for="m in sortedMonths" :key="m.id" :value="`${m.year}-${m.month}`">
+        <option v-for="m in newestFirst" :key="m.id" :value="`${m.year}-${m.month}`">
           {{ monthLabel(m.year, m.month) }}
         </option>
       </select>

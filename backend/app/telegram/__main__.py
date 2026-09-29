@@ -15,7 +15,7 @@ log = logging.getLogger("app.telegram")
 
 async def main() -> None:
     if not settings.telegram_bot_token:
-        raise SystemExit("TELEGRAM_BOT_TOKEN is not set in backend/.env (see app/telegram/README.md)")
+        raise SystemExit("TELEGRAM_BOT_TOKEN is not set in backend/.env (see 'Telegram-бот' in the root README.md)")
     bot = Bot(settings.telegram_bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     me = await bot.get_me()
     log.info("Running as @%s", me.username)

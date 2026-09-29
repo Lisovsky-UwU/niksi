@@ -1,0 +1,281 @@
+@import '@fontsource-variable/golos-text';
+@import '@fontsource/caveat/cyrillic-600.css';
+@import '@fontsource/caveat/latin-600.css';
+
+/*
+ * Niksi is a squared-paper household ledger ("тетрадь в клетку").
+ * Ink blue is the pen, red is the margin line and the red pen for overspending,
+ * yellow is the highlighter for categories close to their limit.
+ */
+:root {
+  --paper: #eef2f8;
+  --sheet: #f9fbfe;
+  --grid: #dde4ef;
+  --line: #d3dbe8;
+  --text: #1c2233;
+  --muted: #5e6679;
+  --ink: #1f3fa8;
+  --ink-hover: #17328a;
+  --ink-wash: #e3e9fa;
+  --on-ink: #ffffff;
+  --red: #c93a31;
+  --red-wash: #fbe7e5;
+  --margin: #e8a29c;
+  --marker: #ffe872;
+  --marker-text: #1c2233;
+
+  --font-ui: 'Golos Text Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-hand: 'Caveat', 'Segoe Print', cursive;
+
+  --cell: 22px;
+  --radius-sheet: 14px;
+  --radius-control: 8px;
+
+  color-scheme: light;
+  font: 400 16px/1.5 var(--font-ui);
+  color: var(--text);
+  background: var(--paper);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #0f1420;
+    --sheet: #151b29;
+    --grid: #232d44;
+    --line: #2a344a;
+    --text: #e4e8f2;
+    --muted: #98a1b5;
+    --ink: #93a9ff;
+    --ink-hover: #b3c3ff;
+    --ink-wash: #1f2944;
+    --on-ink: #0f1420;
+    --red: #ff8375;
+    --red-wash: #3a1f22;
+    --margin: #6b3431;
+    --marker: #5e5114;
+    --marker-text: #fff6c4;
+
+    color-scheme: dark;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 1.75rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Squared paper. Used on the sheets that carry handwritten figures. */
+.grid-paper {
+  background-color: var(--sheet);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  background-position: -1px -1px;
+}
+
+.hand {
+  font-family: var(--font-hand);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error-text {
+  color: var(--red);
+  font-size: 0.9rem;
+}
+
+/* Controls */
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+input,
+select {
+  font: inherit;
+  color: var(--text);
+  background: var(--sheet);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 0.55rem 0.75rem;
+  min-height: 2.5rem;
+  width: 100%;
+}
+
+input:hover,
+select:hover {
+  border-color: color-mix(in srgb, var(--ink) 40%, var(--line));
+}
+
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--ink-wash);
+}
+
+input[type='checkbox'] {
+  width: 1.1rem;
+  min-height: 0;
+  height: 1.1rem;
+  accent-color: var(--ink);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--sheet);
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.btn-primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
+  color: var(--on-ink);
+}
+
+/* Text-only action: for secondary things that sit next to content. */
+.btn-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+  padding-inline: 0.5rem;
+}
+
+.btn-quiet:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--ink-wash);
+  color: var(--ink);
+}
+
+.btn-danger,
+.btn-danger:hover:not(:disabled) {
+  background: var(--red-wash);
+  border-color: transparent;
+  color: var(--red);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Sections on the plain page, below the sheet. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid var(--text);
+}
+
+.empty {
+  padding: 1.25rem 0;
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -74,11 +74,13 @@ def test_full_budget_flow(client: TestClient) -> None:
     assert expenses_resp.status_code == 200
     assert len(expenses_resp.json()) == 2
 
-    income_resp = client.put(
-        f"/api/months/{month_id}/income/me",
-        json={"forecast_amount": "150000", "actual_amount": "148000"},
-    )
+    income_resp = client.put(f"/api/months/{month_id}/income/me", json={"forecast_amount": "150000"})
     assert income_resp.status_code == 200
+    entry_resp = client.post(
+        f"/api/months/{month_id}/income/entries",
+        json={"amount": "148000", "description": "Зарплата", "received_date": "2026-09-10"},
+    )
+    assert entry_resp.status_code == 201
 
     summary_resp = client.get(f"/api/months/{month_id}/summary")
     assert summary_resp.status_code == 200

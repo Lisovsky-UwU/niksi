@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { RouterLink, useRoute } from 'vue-router'
 import { useBudgetStore } from '../stores/budget'
 import { formatMoney, todayIso } from '../utils/format'
 
 const store = useBudgetStore()
+const route = useRoute()
 
 const categoryId = ref<number | null>(store.categories[0]?.id ?? null)
 
@@ -59,7 +61,8 @@ async function handleSubmit() {
     <h2 class="form-title">Записать трату</h2>
 
     <p v-if="store.categories.length === 0" class="no-categories">
-      Сначала заведите хотя бы одну категорию ниже, чтобы было куда записывать траты.
+      Сначала заведите хотя бы одну категорию, чтобы было куда записывать траты.
+      <RouterLink :to="{ name: 'month-categories', params: route.params }">Перейти к категориям</RouterLink>
     </p>
 
     <template v-else>
@@ -91,7 +94,7 @@ async function handleSubmit() {
         </span>
       </p>
 
-      <div class="row">
+      <div class="form-grid">
         <label class="field date">
           Дата
           <input v-model="expenseDate" type="date" required />
@@ -172,39 +175,6 @@ async function handleSubmit() {
   border: none;
 }
 
-.chip input {
-  position: absolute;
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-}
-
-.chip span {
-  display: inline-block;
-  padding: 0.35rem 0.8rem;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--sheet);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.chip span:hover {
-  border-color: var(--ink);
-}
-
-.chip input:checked + span {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--on-ink);
-}
-
-.chip input:focus-visible + span {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
-
 .category-left {
   font-size: 0.875rem;
 }
@@ -216,12 +186,6 @@ async function handleSubmit() {
 
 .category-left .over {
   color: var(--red);
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 11rem minmax(0, 1fr);
-  gap: 0.75rem;
 }
 
 .submit {
@@ -243,9 +207,6 @@ async function handleSubmit() {
 }
 
 @media (max-width: 420px) {
-  .row {
-    grid-template-columns: 1fr;
-  }
 
   .submit {
     align-self: stretch;

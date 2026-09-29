@@ -34,14 +34,33 @@ const router = createRouter({
     },
     {
       path: '/months/:year/:month',
-      name: 'dashboard',
       component: () => import('../views/DashboardView.vue'),
       props: true,
+      children: [
+        { path: '', name: 'dashboard', component: () => import('../views/MonthOverview.vue') },
+        { path: 'categories', name: 'month-categories', component: () => import('../components/CategoryList.vue') },
+        {
+          path: 'expenses',
+          name: 'month-expenses',
+          component: () => import('../components/ExpenseList.vue'),
+          props: { limit: 15 },
+        },
+        { path: 'income', name: 'month-income', component: () => import('../components/IncomePanel.vue') },
+        { path: 'grey-zone', name: 'month-grey-zone', component: () => import('../components/GreyZonePanel.vue') },
+      ],
     },
     {
       path: '/history',
       name: 'history',
       component: () => import('../views/HistoryView.vue'),
+    },
+    {
+      path: '/money',
+      component: () => import('../views/MoneyView.vue'),
+      children: [
+        { path: '', name: 'money', component: () => import('../views/MoneyReconcile.vue') },
+        { path: 'savings', name: 'money-savings', component: () => import('../components/SavingsSection.vue') },
+      ],
     },
   ],
 })

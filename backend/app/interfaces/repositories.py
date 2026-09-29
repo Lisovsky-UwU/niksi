@@ -6,10 +6,26 @@ interfaces.
 """
 
 from abc import ABC, abstractmethod
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from app.domain.models import Category, Expense, Income, Month, User, UserCredentials
+from app.domain.models import (
+    CashFlows,
+    Category,
+    Expense,
+    GreyZoneEntry,
+    GreyZoneLimit,
+    Income,
+    IncomeEntry,
+    Month,
+    Reconciliation,
+    SavingsPot,
+    SavingsPotKind,
+    SavingsTransfer,
+    SavingsTransferDirection,
+    User,
+    UserCredentials,
+)
 
 
 class UserRepository(ABC):
@@ -45,6 +61,9 @@ class MonthRepository(ABC):
 
     @abstractmethod
     def create(self, year: int, month: int) -> Month: ...
+
+    @abstractmethod
+    def set_carryover_override(self, month_id: int, amount: Decimal | None) -> Month: ...
 
 
 class CategoryRepository(ABC):
@@ -117,10 +136,162 @@ class IncomeRepository(ABC):
     def get(self, month_id: int, user_id: int) -> Income | None: ...
 
     @abstractmethod
-    def upsert(
+    def upsert(self, month_id: int, user_id: int, forecast_amount: Decimal) -> Income: ...
+
+    @abstractmethod
+    def list_entries(self, month_id: int) -> list[IncomeEntry]:
+        """Actual receipts for a month, newest first."""
+        ...
+
+    @abstractmethod
+    def get_entry(self, entry_id: int) -> IncomeEntry | None: ...
+
+    @abstractmethod
+    def create_entry(
         self,
         month_id: int,
         user_id: int,
-        forecast_amount: Decimal,
-        actual_amount: Decimal,
-    ) -> Income: ...
+        amount: Decimal,
+        description: str | None,
+        received_date: date,
+        created_by_user_id: int,
+    ) -> IncomeEntry: ...
+
+    @abstractmethod
+    def delete_entry(self, entry_id: int) -> None: ...
+
+    @abstractmethod
+    def sum_entries_by_user(self, month_id: int) -> dict[int, Decimal]:
+        """user_id -> total actually received this month."""
+        ...
+
+
+class GreyZoneRepository(ABC):
+    @abstractmethod
+    def list_limits(self, month_id: int) -> list[GreyZoneLimit]: ...
+
+    @abstractmethod
+    def upsert_limit(self, month_id: int, user_id: int, amount: Decimal) -> GreyZoneLimit: ...
+
+    @abstractmethod
+    def list_entries(self, month_id: int) -> list[GreyZoneEntry]:
+        """Money taken this month, newest first."""
+        ...
+
+    @abstractmethod
+    def get_entry(self, entry_id: int) -> GreyZoneEntry | None: ...
+
+    @abstractmethod
+    def create_entry(self, month_id: int, user_id: int, amount: Decimal, taken_date: date) -> GreyZoneEntry: ...
+
+    @abstractmethod
+    def delete_entry(self, entry_id: int) -> None: ...
+
+    @abstractmethod
+    def sum_taken_by_user(self, month_id: int) -> dict[int, Decimal]: ...
+
+
+class SavingsRepository(ABC):
+    @abstractmethod
+    def list_pots(self, include_archived: bool) -> list[SavingsPot]: ...
+
+    @abstractmethod
+    def get_pot(self, pot_id: int) -> SavingsPot | None: ...
+
+    @abstractmethod
+    def create_pot(
+        self,
+        name: str,
+        kind: SavingsPotKind,
+        target_amount: Decimal | None,
+        target_date: date | None,
+    ) -> SavingsPot: ...
+
+    @abstractmethod
+    def update_pot(
+        self,
+        pot_id: int,
+        name: str,
+        target_amount: Decimal | None,
+        target_date: date | None,
+        is_archived: bool,
+    ) -> SavingsPot:
+        """Replaces all editable fields at once (PUT semantics), so None clears a target."""
+        ...
+
+    @abstractmethod
+    def delete_pot(self, pot_id: int) -> None: ...
+
+    @abstractmethod
+    def has_transfers(self, pot_id: int) -> bool: ...
+
+    @abstractmethod
+    def list_transfers(self, pot_id: int) -> list[SavingsTransfer]:
+        """Newest first."""
+        ...
+
+    @abstractmethod
+    def get_transfer(self, transfer_id: int) -> SavingsTransfer | None: ...
+
+    @abstractmethod
+    def create_transfer(
+        self,
+        pot_id: int,
+        direction: SavingsTransferDirection,
+        amount: Decimal,
+        transfer_date: date,
+        note: str | None,
+        created_by_user_id: int,
+    ) -> SavingsTransfer: ...
+
+    @abstractmethod
+    def delete_transfer(self, transfer_id: int) -> None: ...
+
+    @abstractmethod
+    def sum_budget_flows_between(self, start: date, end: date) -> tuple[Decimal, Decimal]:
+        """(moved into pots, moved back out) for transfers dated start..end inclusive. Interest is ignored."""
+        ...
+
+
+class ReconciliationRepository(ABC):
+    @abstractmethod
+    def list_all(self) -> list[Reconciliation]:
+        """Newest first."""
+        ...
+
+    @abstractmethod
+    def get_latest(self) -> Reconciliation | None: ...
+
+    @abstractmethod
+    def get_by_id(self, reconciliation_id: int) -> Reconciliation | None: ...
+
+    @abstractmethod
+    def create(
+        self,
+        balance_date: date,
+        actual_balance: Decimal,
+        expected_balance: Decimal | None,
+        difference: Decimal,
+        note: str | None,
+        created_by_user_id: int,
+    ) -> Reconciliation: ...
+
+    @abstractmethod
+    def delete(self, reconciliation_id: int) -> None: ...
+
+    @abstractmethod
+    def sum_difference_between(self, start: date, end: date) -> Decimal: ...
+
+
+class LedgerRepository(ABC):
+    """Read-only view over every movement of the shared money, across all tables."""
+
+    @abstractmethod
+    def flows_after(self, after_date: date, after_created_at: datetime, until_date: date) -> CashFlows:
+        """Movements recorded after a reconciliation and dated no later than `until_date`.
+
+        A movement counts as "after" when its date is later than `after_date`, or it is
+        dated the same day but was entered after `after_created_at` — so something entered
+        later for the day of a reconciliation is not treated as already counted in it.
+        """
+        ...

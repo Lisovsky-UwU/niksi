@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from app.api.router import router as api_router
-from app.domain.exceptions import AuthenticationError, NotFoundError, ValidationError
+from app.domain.exceptions import AuthenticationError, ForbiddenError, NotFoundError, ValidationError
 
 app = FastAPI(title="Niksi")
 
@@ -20,6 +20,11 @@ def handle_validation_error(request: Request, exc: ValidationError) -> JSONRespo
 @app.exception_handler(AuthenticationError)
 def handle_authentication_error(request: Request, exc: AuthenticationError) -> JSONResponse:
     return JSONResponse(status_code=401, content={"detail": str(exc)})
+
+
+@app.exception_handler(ForbiddenError)
+def handle_forbidden(request: Request, exc: ForbiddenError) -> JSONResponse:
+    return JSONResponse(status_code=403, content={"detail": str(exc)})
 
 
 app.include_router(api_router)

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
@@ -34,6 +36,14 @@ class SqlAlchemyMonthRepository(MonthRepository):
     def create(self, year: int, month: int) -> Month:
         orm = MonthORM(year=year, month=month)
         self._db.add(orm)
+        self._db.commit()
+        self._db.refresh(orm)
+        return Month.model_validate(orm)
+
+    def set_carryover_override(self, month_id: int, amount: Decimal | None) -> Month:
+        orm = self._db.get(MonthORM, month_id)
+        assert orm is not None
+        orm.carryover_override = amount
         self._db.commit()
         self._db.refresh(orm)
         return Month.model_validate(orm)

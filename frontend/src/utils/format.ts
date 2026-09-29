@@ -60,6 +60,26 @@ export function monthIn(month: number): string {
   return MONTH_NAMES_IN[month - 1]
 }
 
+// Genitive case, for "на конец сентября".
+const MONTH_NAMES_OF = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+]
+
+export function monthOf(month: number): string {
+  return MONTH_NAMES_OF[month - 1]
+}
+
 export function todayIso(): string {
   const d = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -84,4 +104,35 @@ export function formatDay(iso: string): string {
   const parts = dayFormatter.formatToParts(new Date(y, m - 1, d))
   const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
   return `${get('day')} ${get('month')}, ${get('weekday')}`
+}
+
+const shortDayFormatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short' })
+
+/** "2026-09-05" -> "5 сент." */
+export function formatShortDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return shortDayFormatter.format(new Date(y, m - 1, d))
+}
+
+const longDateFormatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+
+/** "2026-09-05" -> "5 сентября 2026 г." without the trailing "г." */
+export function formatLongDate(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return longDateFormatter.format(new Date(y, m - 1, d)).replace(/\s?г\.$/, '')
+}
+
+/** "+1 500 ₽" / "−1 500 ₽" (a true minus sign), "0 ₽" for zero. */
+export function formatSignedMoney(value: string | number | null | undefined): string {
+  const n = toNumber(value)
+  if (n === 0) return formatMoney(0)
+  return `${n > 0 ? '+' : '−'}${formatMoney(Math.abs(n))}`
+}
+
+export function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
+  return many
 }

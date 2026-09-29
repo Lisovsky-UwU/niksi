@@ -32,13 +32,12 @@ function stats(m: Month) {
   if (!s) return null
   const limit = toNumber(s.totals.total_limit)
   const spent = toNumber(s.totals.total_spent)
-  const hasIncome = toNumber(s.income.household_actual) > 0
   return {
     limit,
     spent,
     percent: limit > 0 ? Math.min((spent / limit) * 100, 100) : 0,
     over: limit > 0 && spent > limit,
-    net: hasIncome ? toNumber(s.balance.net) : null,
+    closing: toNumber(s.carryover.closing),
   }
 }
 
@@ -107,11 +106,9 @@ onMounted(async () => {
                 <span class="num" :class="{ 'over-text': stats(m)!.over }">{{ formatMoney(stats(m)!.spent) }}</span>
                 <span v-if="stats(m)!.limit > 0" class="num muted"> из {{ formatMoney(stats(m)!.limit) }}</span>
               </span>
-              <span class="net num" :class="{ negative: (stats(m)!.net ?? 0) < 0 }">
-                <template v-if="stats(m)!.net !== null">
-                  {{ stats(m)!.net! >= 0 ? '+' : '−' }}{{ formatMoney(Math.abs(stats(m)!.net!)) }}
-                </template>
-                <span v-else class="muted">доход не указан</span>
+              <span class="net" :class="{ negative: stats(m)!.closing < 0 }">
+                <span class="muted">остаток </span>
+                <span class="num">{{ formatMoney(stats(m)!.closing) }}</span>
               </span>
             </template>
           </RouterLink>
@@ -156,7 +153,7 @@ onMounted(async () => {
 
 .month-row {
   display: grid;
-  grid-template-columns: 10rem minmax(0, 1fr) 9rem;
+  grid-template-columns: 10rem minmax(0, 1fr) 12rem;
   align-items: center;
   gap: 0.5rem 1.5rem;
   padding: 0.9rem 0.75rem;

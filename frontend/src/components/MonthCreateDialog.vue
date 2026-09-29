@@ -67,7 +67,7 @@ async function handleSubmit() {
     </div>
     <label class="checkbox">
       <input v-model="copyFromPrevious" type="checkbox" />
-      Перенести категории и лимиты из предыдущего месяца
+      Перенести категории, лимиты, ожидаемый доход и серую зону из предыдущего месяца
     </label>
     <p v-if="error" class="error-text" role="alert">{{ error }}</p>
     <div class="actions">

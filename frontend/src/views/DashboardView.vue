@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { RouterView } from 'vue-router'
 import { getMonthByYearMonth } from '../api/months'
-import CategoryList from '../components/CategoryList.vue'
-import ExpenseList from '../components/ExpenseList.vue'
-import IncomePanel from '../components/IncomePanel.vue'
 import MonthCreateDialog from '../components/MonthCreateDialog.vue'
-import MonthHero from '../components/MonthHero.vue'
+import MonthSelector from '../components/MonthSelector.vue'
+import TabNav from '../components/TabNav.vue'
 import { useBudgetStore } from '../stores/budget'
 import { useMonthsStore } from '../stores/months'
 import type { Month } from '../types/models'
 import { monthLabel } from '../utils/format'
 
+// Layout for one month: loads its data once, then each tab (overview, categories,
+// expenses, income, grey zone) is a child route rendering its own part.
 const props = defineProps<{ year: string; month: string }>()
 
 const monthsStore = useMonthsStore()
@@ -21,6 +22,17 @@ const notFound = ref(false)
 
 const yearNumber = computed(() => Number(props.year))
 const monthNumber = computed(() => Number(props.month))
+
+const tabs = computed(() => {
+  const params = { year: props.year, month: props.month }
+  return [
+    { label: 'Обзор', to: { name: 'dashboard', params } },
+    { label: 'Категории', to: { name: 'month-categories', params } },
+    { label: 'Траты', to: { name: 'month-expenses', params } },
+    { label: 'Доход', to: { name: 'month-income', params } },
+    { label: 'Серая зона', to: { name: 'month-grey-zone', params } },
+  ]
+})
 
 async function load() {
   loading.value = true
@@ -57,16 +69,12 @@ watch([yearNumber, monthNumber], load)
       <MonthCreateDialog :initial-year="yearNumber" :initial-month="monthNumber" @created="handleCreated" />
     </div>
 
-    <div v-else-if="budgetStore.summary" class="dashboard" :class="{ refreshing: loading }">
-      <MonthHero :summary="budgetStore.summary" />
-
-      <div class="columns">
-        <CategoryList />
-        <div class="side">
-          <IncomePanel />
-          <ExpenseList />
-        </div>
+    <div v-else-if="budgetStore.summary" class="month" :class="{ refreshing: loading }">
+      <div class="month-head">
+        <MonthSelector :current-year="yearNumber" :current-month="monthNumber" />
+        <TabNav :tabs="tabs" label="Разделы месяца" />
       </div>
+      <RouterView />
     </div>
   </div>
 </template>
@@ -84,33 +92,30 @@ watch([yearNumber, monthNumber], load)
   padding: 2rem 0;
 }
 
-.dashboard {
+.month {
   display: flex;
   flex-direction: column;
-  gap: 3rem;
+  gap: 1.25rem;
   transition: opacity 0.2s;
+}
+
+.month-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.month-head :deep(.month-selector) {
+  margin-left: -0.6rem;
+}
+
+/* Single-block tabs read better at a comfortable width than stretched across the page. */
+.month > :deep(.section) {
+  width: 100%;
+  max-width: 46rem;
 }
 
 .refreshing {
   opacity: 0.6;
-}
-
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
-  gap: 3rem;
-  align-items: start;
-}
-
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 3rem;
-}
-
-@media (max-width: 860px) {
-  .columns {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

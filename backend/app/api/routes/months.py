@@ -1,9 +1,15 @@
 from fastapi import APIRouter, Depends, status
 
-from app.api.deps import get_create_month_use_case, get_current_user, get_get_month_use_case, get_list_months_use_case
-from app.api.schemas import MonthCreateRequest
+from app.api.deps import (
+    get_create_month_use_case,
+    get_current_user,
+    get_get_month_use_case,
+    get_list_months_use_case,
+    get_set_carryover_use_case,
+)
+from app.api.schemas import CarryoverRequest, MonthCreateRequest
 from app.domain.models import Month, User
-from app.use_cases.months import CreateMonthUseCase, GetMonthUseCase, ListMonthsUseCase
+from app.use_cases.months import CreateMonthUseCase, GetMonthUseCase, ListMonthsUseCase, SetCarryoverUseCase
 
 router = APIRouter(prefix="/months", tags=["months"])
 
@@ -33,3 +39,13 @@ def get_month(
     _current_user: User = Depends(get_current_user),
 ) -> Month:
     return use_case.execute(year, month)
+
+
+@router.put("/{month_id}/carryover", response_model=Month)
+def set_carryover(
+    month_id: int,
+    payload: CarryoverRequest,
+    use_case: SetCarryoverUseCase = Depends(get_set_carryover_use_case),
+    _current_user: User = Depends(get_current_user),
+) -> Month:
+    return use_case.execute(month_id, payload.amount)

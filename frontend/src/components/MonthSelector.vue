@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useMonthsStore } from '../stores/months'
 import { monthLabel } from '../utils/format'
 
 const props = defineProps<{ currentYear: number; currentMonth: number }>()
 const store = useMonthsStore()
 const router = useRouter()
+const route = useRoute()
 
 const sortedMonths = computed(() =>
   [...store.months].sort((a, b) => (a.year === b.year ? a.month - b.month : a.year - b.year)),
@@ -23,8 +24,10 @@ const next = computed(() =>
     : null,
 )
 
+// Stay on the same tab (expenses, income…) when switching months.
 function go(year: number, month: number) {
-  router.push({ name: 'dashboard', params: { year, month } })
+  const name = typeof route.name === 'string' && route.name.startsWith('month-') ? route.name : 'dashboard'
+  router.push({ name, params: { year, month } })
 }
 
 function handleChange(event: Event) {

@@ -8,6 +8,15 @@ export interface User {
   display_name: string
   /** null when the person has no picture; bumps with every new one */
   avatar_version: number | null
+  /** can use the Telegram bot */
+  telegram_linked: boolean
+}
+
+export interface TelegramLinkCode {
+  code: string
+  expires_at: string
+  /** set when the server knows the bot's name, for a t.me link that sends the code by itself */
+  bot_username: string | null
 }
 
 export interface Month {

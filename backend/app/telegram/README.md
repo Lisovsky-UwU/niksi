@@ -1,16 +1,54 @@
-# Telegram entry point (planned, not implemented yet)
+# Telegram-бот Niksi
 
-This package is reserved for a future Telegram bot that lets either partner log an
-expense directly from a chat, as a second entry point alongside the web API.
+Второй вход в приложение, рядом с веб-API. Бот живёт в общей беседе пары: записывает траты одной строкой,
+показывает остатки, принимает поступления и серую зону, пишет о тратах из веб-приложения и присылает
+вечернюю сводку.
 
-When built, it will:
+Устройство:
 
-- Wire its own dependency injection (repository + service instances, then use cases),
-  independently of `app/api/deps.py` — that module is specific to FastAPI's `Depends()`
-  mechanism and isn't reusable here.
-- Call the exact same `app/use_cases/*` classes the API routes call today (e.g.
-  `AddExpenseUseCase`, `GetMonthSummaryUseCase`) — no business logic should be
-  duplicated or reimplemented for the bot.
-- Need its own way to resolve "which of our two `User` rows sent this Telegram
-  message" (e.g. a `telegram_user_id` column added to `users` at that point) —
-  intentionally not built now, since there's only one entry point to support today.
+- `service.py` (`BotService`) — всё, что бот понимает и отвечает, без Telegram-библиотек. Вызывает те же
+  `app/use_cases/*`, что и веб-API: логика нигде не дублируется. Тесты: `tests/test_telegram_bot.py`.
+- `parsing.py` — разбор строк вроде «450 прод пятёрочка», «кафе 300», «+40000 аванс».
+  Тесты: `tests/test_telegram_parsing.py`.
+- `bot.py` — обработчики aiogram и вечерняя сводка; на каждое сообщение открывается своя сессия БД.
+- `__main__.py` — запуск через long polling, публичный адрес не нужен.
+- Кто пишет, бот узнаёт по `users.telegram_user_id`. Привязка — одноразовым кодом из настроек веб-приложения.
+
+## Запуск
+
+1. Создайте бота у [@BotFather](https://t.me/BotFather): `/newbot`, придумайте имя.
+2. **Отключите privacy mode:** `/setprivacy` → выберите бота → `Disable`. Иначе в группе бот видит только
+   команды, а не строки вроде «450 продукты». Если бот уже в беседе, удалите его и добавьте снова.
+3. В `backend/.env`:
+   ```
+   TELEGRAM_BOT_TOKEN=123456:ABC...        # токен от BotFather
+   TELEGRAM_BOT_USERNAME=niksi_budget_bot  # имя без @, для ссылки привязки в настройках
+   TELEGRAM_SUMMARY_TIME=21:00             # когда присылать вечернюю сводку
+   TELEGRAM_TIMEZONE=Europe/Moscow
+   ```
+4. Запустите бота рядом с бэкендом: `uv run python -m app.telegram`.
+   Веб-API тоже читает токен: уведомления о тратах из приложения отправляются прямо из него. После
+   изменения `.env` перезапустите и бэкенд.
+
+## Подключение беседы
+
+1. Создайте группу с ботом и второй половиной.
+2. Каждый: в приложении **Настройки → Telegram → Получить код**, затем отправьте боту `/link КОД`
+   (или нажмите ссылку рядом с кодом, если задан `TELEGRAM_BOT_USERNAME`). Код действует 15 минут.
+3. Один из вас пишет в группе `/bind`: эта беседа становится общей. В других группах бот молчит,
+   а в личке отвечает по-прежнему.
+
+## Что умеет
+
+| Сообщение | Что происходит |
+| --- | --- |
+| `450 прод пятёрочка`, `кафе 300`, `1500 дом и быт за электричество`, `кафе⏎500⏎академия кофе` | Трата на того, кто написал. Категорию можно сократить или написать с опечаткой; если бот её не узнал, пришлёт кнопки. Под ответом кнопки «Отменить» и «Другая категория». |
+| `+40000 аванс` | Поступление дохода |
+| `/grey 3000` | Взяли себе из серой зоны |
+| `/left`, `/cats`, `/month`, `/last` | Остаток месяца и в день, по категориям, итог столбиком, последние траты |
+| `/undo` | Удалить свою последнюю трату |
+| `/add 450 …` | Записать трату, даже если строка похожа на обычную фразу |
+| `/notify on/off`, `/summary on/off` | Уведомления о тратах из приложения, вечерняя сводка |
+
+Обычные сообщения с числами («буду дома в 19») бот не трогает: сумма засчитывается, только если стоит в начале
+или в конце сообщения, на отдельной строке или рядом с названием категории.

@@ -25,6 +25,7 @@ from app.domain.models import (
     SavingsPotKind,
     SavingsTransfer,
     SavingsTransferDirection,
+    TelegramChat,
     User,
     UserCredentials,
 )
@@ -58,6 +59,22 @@ class UserRepository(ABC):
     @abstractmethod
     def set_avatar(self, user_id: int, avatar: Avatar | None) -> User:
         """Stores a new avatar (bumping its version), or removes it when None."""
+        ...
+
+    @abstractmethod
+    def get_by_telegram_id(self, telegram_user_id: int) -> User | None: ...
+
+    @abstractmethod
+    def set_link_code(self, user_id: int, code: str, expires_at: datetime) -> None: ...
+
+    @abstractmethod
+    def find_link_code(self, code: str) -> tuple[User, datetime] | None:
+        """The person a pending link code belongs to, with its expiry."""
+        ...
+
+    @abstractmethod
+    def set_telegram_id(self, user_id: int, telegram_user_id: int | None) -> User:
+        """Links (or with None unlinks) a Telegram account; any pending code is dropped."""
         ...
 
 
@@ -340,3 +357,21 @@ class LedgerRepository(ABC):
         later for the day of a reconciliation is not treated as already counted in it.
         """
         ...
+
+
+class TelegramChatRepository(ABC):
+    """The couple's single shared chat with the bot."""
+
+    @abstractmethod
+    def get(self) -> TelegramChat | None: ...
+
+    @abstractmethod
+    def bind(self, chat_id: int, user_id: int) -> TelegramChat:
+        """Makes this chat the shared one, replacing any chat bound before."""
+        ...
+
+    @abstractmethod
+    def set_flags(self, notify_enabled: bool | None, daily_summary_enabled: bool | None) -> TelegramChat: ...
+
+    @abstractmethod
+    def mark_summary_sent(self, day: date) -> None: ...

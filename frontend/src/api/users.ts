@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { User } from '../types/models'
+import type { TelegramLinkCode, User } from '../types/models'
 
 export function listUsers() {
   return apiClient.get<User[]>('/users').then((r) => r.data)
@@ -24,6 +24,15 @@ export function uploadMyAvatar(image: Blob) {
 
 export function removeMyAvatar() {
   return apiClient.delete<User>('/users/me/avatar').then((r) => r.data)
+}
+
+/** A one-time code the person sends to the bot as /link CODE. */
+export function createTelegramLinkCode() {
+  return apiClient.post<TelegramLinkCode>('/users/me/telegram-code').then((r) => r.data)
+}
+
+export function unlinkTelegram() {
+  return apiClient.delete<User>('/users/me/telegram').then((r) => r.data)
 }
 
 export function avatarUrl(user: Pick<User, 'id' | 'avatar_version'>): string | null {

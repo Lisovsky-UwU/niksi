@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -66,6 +68,33 @@ class SqlAlchemyUserRepository(UserRepository):
             orm.avatar = avatar.data
             orm.avatar_content_type = avatar.content_type
             orm.avatar_version = (orm.avatar_version or 0) + 1
+        self._db.commit()
+        self._db.refresh(orm)
+        return User.model_validate(orm)
+
+    def get_by_telegram_id(self, telegram_user_id: int) -> User | None:
+        orm = self._db.scalar(select(UserORM).where(UserORM.telegram_user_id == telegram_user_id))
+        return User.model_validate(orm) if orm else None
+
+    def set_link_code(self, user_id: int, code: str, expires_at: datetime) -> None:
+        orm = self._db.get(UserORM, user_id)
+        assert orm is not None
+        orm.telegram_link_code = code
+        orm.telegram_link_code_expires_at = expires_at
+        self._db.commit()
+
+    def find_link_code(self, code: str) -> tuple[User, datetime] | None:
+        orm = self._db.scalar(select(UserORM).where(UserORM.telegram_link_code == code))
+        if orm is None or orm.telegram_link_code_expires_at is None:
+            return None
+        return User.model_validate(orm), orm.telegram_link_code_expires_at
+
+    def set_telegram_id(self, user_id: int, telegram_user_id: int | None) -> User:
+        orm = self._db.get(UserORM, user_id)
+        assert orm is not None
+        orm.telegram_user_id = telegram_user_id
+        orm.telegram_link_code = None
+        orm.telegram_link_code_expires_at = None
         self._db.commit()
         self._db.refresh(orm)
         return User.model_validate(orm)

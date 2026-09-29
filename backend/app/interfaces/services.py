@@ -1,8 +1,8 @@
 """Abstract technical-service contracts (as opposed to data-access repositories).
 
-`PasswordHasher` and `TokenService` back the auth use cases today. A future
-`NotificationService` (e.g. sending a Telegram message when a partner logs an
-expense) would land here too, so use cases can depend on it the same way.
+`PasswordHasher` and `TokenService` back the auth use cases; `NotificationService`
+delivers messages to the couple's Telegram chat (e.g. when a partner logs an expense
+in the web app).
 """
 
 from abc import ABC, abstractmethod
@@ -23,4 +23,11 @@ class TokenService(ABC):
     @abstractmethod
     def decode_token(self, token: str) -> int:
         """Return the user id encoded in the token, or raise AuthenticationError."""
+        ...
+
+
+class NotificationService(ABC):
+    @abstractmethod
+    def send(self, chat_id: int, text: str) -> None:
+        """Deliver a message; failures are swallowed, a notification is never worth an error."""
         ...

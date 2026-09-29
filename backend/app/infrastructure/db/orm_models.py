@@ -6,6 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     Date,
     DateTime,
@@ -33,7 +34,14 @@ class UserORM(Base):
     avatar: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True, deferred=True)
     avatar_content_type: Mapped[str | None] = mapped_column(String(40), nullable=True)
     avatar_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    telegram_user_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True)
+    telegram_link_code: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    telegram_link_code_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    @property
+    def telegram_linked(self) -> bool:
+        return self.telegram_user_id is not None
 
 
 class MonthORM(Base):
@@ -167,4 +175,16 @@ class ReconciliationORM(Base):
     difference: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
     note: Mapped[str | None] = mapped_column(String(200), nullable=True)
     created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class TelegramChatORM(Base):
+    __tablename__ = "telegram_chats"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, unique=True)
+    bound_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    notify_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    daily_summary_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_summary_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

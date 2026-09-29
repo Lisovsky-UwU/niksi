@@ -20,7 +20,9 @@ from app.infrastructure.repositories.sqlalchemy_month_repository import SqlAlche
 from app.infrastructure.repositories.sqlalchemy_reconciliation_repository import SqlAlchemyReconciliationRepository
 from app.infrastructure.repositories.sqlalchemy_savings_repository import SqlAlchemySavingsRepository
 from app.infrastructure.repositories.sqlalchemy_user_repository import SqlAlchemyUserRepository
+from app.infrastructure.repositories.sqlalchemy_telegram_chat_repository import SqlAlchemyTelegramChatRepository
 from app.infrastructure.security import Argon2PasswordHasher, JwtTokenService
+from app.infrastructure.telegram_notifier import TelegramNotifier
 from app.interfaces.repositories import (
     CategoryRepository,
     ExpenseRepository,
@@ -30,9 +32,10 @@ from app.interfaces.repositories import (
     MonthRepository,
     ReconciliationRepository,
     SavingsRepository,
+    TelegramChatRepository,
     UserRepository,
 )
-from app.interfaces.services import PasswordHasher, TokenService
+from app.interfaces.services import NotificationService, PasswordHasher, TokenService
 from app.use_cases.auth import GetCurrentUserUseCase, LoginUseCase
 from app.use_cases.categories import (
     CopyCategoriesFromPreviousMonthUseCase,
@@ -84,6 +87,11 @@ from app.use_cases.savings import (
     UpdateSavingsPotUseCase,
 )
 from app.use_cases.summary import GetMonthSummaryUseCase
+from app.use_cases.telegram import (
+    CreateTelegramLinkCodeUseCase,
+    UnlinkTelegramUseCase,
+    WebExpenseNotificationUseCase,
+)
 from app.use_cases.users import (
     ChangeMyPasswordUseCase,
     GetAvatarUseCase,
@@ -96,6 +104,7 @@ COOKIE_NAME = "access_token"
 
 _password_hasher = Argon2PasswordHasher()
 _token_service = JwtTokenService(settings.secret_key, settings.jwt_algorithm, settings.jwt_expires_days)
+_notifier = TelegramNotifier(settings.telegram_bot_token)
 
 
 # ---- repositories ----
@@ -137,6 +146,10 @@ def get_ledger_repository(db: Session = Depends(get_db)) -> LedgerRepository:
     return SqlAlchemyLedgerRepository(db)
 
 
+def get_telegram_chat_repository(db: Session = Depends(get_db)) -> TelegramChatRepository:
+    return SqlAlchemyTelegramChatRepository(db)
+
+
 # ---- services ----
 
 
@@ -146,6 +159,10 @@ def get_password_hasher() -> PasswordHasher:
 
 def get_token_service() -> TokenService:
     return _token_service
+
+
+def get_notification_service() -> NotificationService:
+    return _notifier
 
 
 # ---- use cases ----
@@ -228,6 +245,25 @@ def get_set_my_avatar_use_case(user_repo: UserRepository = Depends(get_user_repo
 
 def get_avatar_use_case(user_repo: UserRepository = Depends(get_user_repository)) -> GetAvatarUseCase:
     return GetAvatarUseCase(user_repo)
+
+
+def get_create_telegram_link_code_use_case(
+    user_repo: UserRepository = Depends(get_user_repository),
+) -> CreateTelegramLinkCodeUseCase:
+    return CreateTelegramLinkCodeUseCase(user_repo)
+
+
+def get_unlink_telegram_use_case(user_repo: UserRepository = Depends(get_user_repository)) -> UnlinkTelegramUseCase:
+    return UnlinkTelegramUseCase(user_repo)
+
+
+def get_web_expense_notification_use_case(
+    chat_repo: TelegramChatRepository = Depends(get_telegram_chat_repository),
+    category_repo: CategoryRepository = Depends(get_category_repository),
+    expense_repo: ExpenseRepository = Depends(get_expense_repository),
+    user_repo: UserRepository = Depends(get_user_repository),
+) -> WebExpenseNotificationUseCase:
+    return WebExpenseNotificationUseCase(chat_repo, category_repo, expense_repo, user_repo)
 
 
 def get_list_categories_use_case(

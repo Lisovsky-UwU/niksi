@@ -1,15 +1,20 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Request, Response, status
 
 from app.api.deps import (
     get_avatar_use_case,
+    get_create_telegram_link_code_use_case,
     get_change_my_password_use_case,
     get_current_user,
     get_list_users_use_case,
     get_set_my_avatar_use_case,
+    get_unlink_telegram_use_case,
     get_update_my_profile_use_case,
 )
 from app.api.schemas import PasswordChangeRequest, ProfileUpdateRequest
-from app.domain.models import Avatar, User
+from app.core.config import settings
+from app.domain.models import Avatar, TelegramLinkCode, User
 from app.use_cases.users import (
     ChangeMyPasswordUseCase,
     GetAvatarUseCase,
@@ -17,6 +22,7 @@ from app.use_cases.users import (
     SetMyAvatarUseCase,
     UpdateMyProfileUseCase,
 )
+from app.use_cases.telegram import CreateTelegramLinkCodeUseCase, UnlinkTelegramUseCase
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -81,3 +87,20 @@ def get_avatar(
         media_type=avatar.content_type,
         headers={"Cache-Control": "private, max-age=31536000, immutable"},
     )
+
+
+@router.post("/me/telegram-code", response_model=TelegramLinkCode)
+def create_telegram_link_code(
+    use_case: CreateTelegramLinkCodeUseCase = Depends(get_create_telegram_link_code_use_case),
+    current_user: User = Depends(get_current_user),
+) -> TelegramLinkCode:
+    code = use_case.execute(current_user.id, datetime.now(UTC))
+    return code.model_copy(update={"bot_username": settings.telegram_bot_username})
+
+
+@router.delete("/me/telegram", response_model=User)
+def unlink_telegram(
+    use_case: UnlinkTelegramUseCase = Depends(get_unlink_telegram_use_case),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    return use_case.execute(current_user.id)

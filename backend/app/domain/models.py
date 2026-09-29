@@ -24,11 +24,35 @@ class User(BaseModel):
     # Bumped on every new avatar so its URL changes and browsers can cache it forever.
     # None when the person has no avatar.
     avatar_version: int | None = None
+    # Whether this person can use the Telegram bot; the Telegram id itself is never exposed.
+    telegram_linked: bool = False
 
 
 class Avatar(BaseModel):
     content_type: str
     data: bytes
+
+
+class TelegramLinkCode(BaseModel):
+    """One-time code shown in the web settings and sent to the bot as /link CODE."""
+
+    code: str
+    expires_at: datetime
+    # Lets the web page offer a t.me link that sends the code by itself; None if not configured.
+    bot_username: str | None = None
+
+
+class TelegramChat(BaseModel):
+    """The couple's shared Telegram chat where the bot answers and posts."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    chat_id: int
+    bound_by_user_id: int
+    notify_enabled: bool = True
+    daily_summary_enabled: bool = True
+    last_summary_date: date | None = None
 
 
 class UserCredentials(BaseModel):

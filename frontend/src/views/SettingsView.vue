@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { changeMyPassword, removeMyAvatar, updateMyProfile, uploadMyAvatar } from '../api/users'
+import TelegramLink from '../components/TelegramLink.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import { useAuthStore } from '../stores/auth'
 import { useBudgetStore } from '../stores/budget'
@@ -194,6 +195,8 @@ async function savePassword() {
         <p v-else-if="passwordSaved" class="ok" role="status">Пароль изменён. Он понадобится при следующем входе.</p>
       </form>
     </section>
+
+    <TelegramLink @changed="applyUser" />
   </div>
 </template>
 

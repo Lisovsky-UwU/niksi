@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     jwt_expires_days: int = 30
     cookie_secure: bool = True
 
+    # Telegram bot (optional): token from @BotFather, when the evening summary is sent and
+    # in which timezone that time is.
+    telegram_bot_token: str | None = None
+    telegram_bot_username: str | None = None
+    telegram_summary_time: str = "21:00"
+    telegram_timezone: str = "Europe/Moscow"
+
     seed_user1_email: str | None = None
     seed_user1_password: str | None = None
     seed_user1_name: str | None = None

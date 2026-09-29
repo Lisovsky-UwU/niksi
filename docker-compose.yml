@@ -1,0 +1,80 @@
+# Niksi: database, API, web app (Caddy) and the optional Telegram bot.
+#   cp .env.example .env    # fill in POSTGRES_PASSWORD and SECRET_KEY
+#   docker compose up -d --build
+# The bot starts only with COMPOSE_PROFILES=telegram in .env (see README.md).
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg://niksi:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/niksi
+  SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+  COOKIE_SECURE: ${COOKIE_SECURE:-false}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+  TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+  TELEGRAM_SUMMARY_TIME: ${TELEGRAM_SUMMARY_TIME:-21:00}
+  TELEGRAM_TIMEZONE: ${TELEGRAM_TIMEZONE:-Europe/Moscow}
+  SEED_USER1_EMAIL: ${SEED_USER1_EMAIL:-}
+  SEED_USER1_PASSWORD: ${SEED_USER1_PASSWORD:-}
+  SEED_USER1_NAME: ${SEED_USER1_NAME:-}
+  SEED_USER2_EMAIL: ${SEED_USER2_EMAIL:-}
+  SEED_USER2_PASSWORD: ${SEED_USER2_PASSWORD:-}
+  SEED_USER2_NAME: ${SEED_USER2_NAME:-}
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: niksi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: niksi
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U niksi -d niksi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    image: niksi-backend
+    restart: unless-stopped
+    environment: *backend-env
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Any HTTP answer (401 without a login) means the API is up.
+      test: ["CMD", "python", "-c", "import urllib.request as u, urllib.error as e\ntry: u.urlopen('http://localhost:8000/api/auth/me')\nexcept e.HTTPError: pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  web:
+    build: ./frontend
+    image: niksi-web
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+      - "${HTTPS_PORT:-8443}:443"
+    volumes:
+      - caddy-data:/data
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  bot:
+    image: niksi-backend
+    profiles: ["telegram"]
+    restart: unless-stopped
+    command: ["python", "-m", "app.telegram"]
+    environment: *backend-env
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:
+  caddy-data:

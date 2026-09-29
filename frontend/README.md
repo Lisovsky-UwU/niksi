@@ -1,5 +1,18 @@
-# Vue 3 + TypeScript + Vite
+# Niksi: веб-приложение
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Vue 3 + TypeScript + Vite. Как запустить, настроить и собрать проект целиком, описано в
+[README в корне репозитория](../README.md).
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+```bash
+npm install
+npm run dev      # http://localhost:5173, /api проксируется на localhost:8000
+npm run build    # проверка типов (vue-tsc) и сборка в dist/
+```
+
+- `src/views` — страницы: месяц и его вкладки, деньги (сверка, накопления, архив), все месяцы, настройки, вход.
+- `src/components` — части страниц: итог месяца, траты, категории, копилки, выбор человека и т. д.
+- `src/stores` — Pinia: вход, данные открытого месяца, деньги вне месяца.
+- `src/api` — вызовы бэкенда, `src/types/models.ts` — типы, повторяющие модели бэкенда.
+- `src/utils` — форматирование денег и дат, периоды месяцев, цвета категорий.
+- `src/style.css` — дизайн-система «тетради в клетку»: цвета (светлая и тёмная тема), сетка, общие классы.
+- `Dockerfile` и `Caddyfile` — сборка и раздача в Docker вместе с прокси `/api`.

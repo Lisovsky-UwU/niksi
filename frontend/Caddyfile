@@ -1,0 +1,22 @@
+# SITE_ADDRESS is ":80" by default (plain HTTP, e.g. on a home network).
+# Set it to a domain such as "niksi.example.com" and Caddy gets an HTTPS certificate by itself.
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		root * /srv
+		# The Vue router handles paths like /months/2026/9 in the browser.
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Hashed build files never change; the page itself is always checked for a newer version.
+	@assets path /assets/*
+	header @assets Cache-Control "public, max-age=31536000, immutable"
+	@page not path /assets/* /api/*
+	header @page Cache-Control "no-cache"
+}

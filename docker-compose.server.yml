@@ -1,0 +1,26 @@
+# Server with its own Nginx (TLS) and PostgreSQL in containers. Turn on in .env:
+#   COMPOSE_FILE=docker-compose.yml:docker-compose.server.yml
+# The db container is not started: the API connects to DATABASE_URL through the external
+# Docker network of that PostgreSQL. The web app listens only on localhost for Nginx.
+
+services:
+  db:
+    profiles: ["local-db"]
+
+  backend:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in .env}
+    depends_on: !reset {}
+    networks: [default, postgres]
+
+  bot:
+    networks: [default, postgres]
+
+  web:
+    ports: !override
+      - "127.0.0.1:${HTTP_PORT:-8080}:80"
+
+networks:
+  postgres:
+    name: ${POSTGRES_NETWORK:?set POSTGRES_NETWORK in .env}
+    external: true

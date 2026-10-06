@@ -99,11 +99,64 @@ Caddy сам получит и будет продлевать сертифик�
 По обычному HTTP (домашняя сеть) оставьте `SITE_ADDRESS=:80` и `COOKIE_SECURE=false`, иначе браузер не
 сохранит куку входа.
 
+### Сервер со своим Nginx и PostgreSQL
+
+Если на сервере уже есть Nginx (раздает TLS) и PostgreSQL в контейнерах, контейнер `db` не нужен,
+а Caddy работает по HTTP за Nginx. Это включает `docker-compose.server.yml`.
+
+1. Создайте базу и пользователя в существующем PostgreSQL:
+
+   ```bash
+   docker exec -it postgres psql -U postgres      -c "CREATE ROLE niksi LOGIN PASSWORD '<пароль>'"      -c "CREATE DATABASE niksi OWNER niksi"
+   ```
+
+2. Узнайте Docker-сеть контейнера PostgreSQL:
+   `docker inspect postgres --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}'`.
+3. В `.env`:
+
+   ```
+   COMPOSE_FILE=docker-compose.yml:docker-compose.server.yml
+   DATABASE_URL=postgresql+psycopg://niksi:<пароль>@postgres:5432/niksi
+   POSTGRES_NETWORK=<сеть из шага 2>
+   SITE_ADDRESS=:80
+   COOKIE_SECURE=true
+   HTTP_PORT=3090
+   ```
+
+   `POSTGRES_PASSWORD` в этом режиме не нужен. Хост в `DATABASE_URL` - имя контейнера PostgreSQL.
+   Приложение слушает только `127.0.0.1:HTTP_PORT`.
+4. `docker compose up -d --build`, затем один раз создайте аккаунты (`seed_users`, см. выше).
+5. Сайт в Nginx:
+
+   ```nginx
+   server {
+       listen 443 ssl;
+       server_name niksi.example.com;
+
+       ssl_certificate     /etc/nginx/ssl/cert.pem;
+       ssl_certificate_key /etc/nginx/ssl/key.pem;
+
+       location / {
+           proxy_pass http://127.0.0.1:3090;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
+
+   Если Nginx работает не в сети `host`, а в своей Docker-сети, вместо `127.0.0.1` нужен адрес,
+   по которому он видит хост, или общая сеть с контейнером `web`.
+
 ### Настройки `.env`
 
 | Переменная | Зачем | По умолчанию |
 | --- | --- | --- |
-| `POSTGRES_PASSWORD` | пароль базы | обязательна |
+| `POSTGRES_PASSWORD` | пароль базы | обязательна со встроенной базой |
+| `DATABASE_URL` | своя база вместо контейнера `db` | собирается из `POSTGRES_PASSWORD` |
+| `COMPOSE_FILE` | `docker-compose.yml:docker-compose.server.yml` для сервера со своими Nginx и PostgreSQL | пусто |
+| `POSTGRES_NETWORK` | Docker-сеть внешнего PostgreSQL (серверный режим) | пусто |
 | `SECRET_KEY` | ключ подписи входа (JWT) | обязательна |
 | `SITE_ADDRESS` | `:80` или домен для HTTPS | `:80` |
 | `COOKIE_SECURE` | кука только по HTTPS | `false` |

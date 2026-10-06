@@ -4,7 +4,8 @@
 # The bot starts only with COMPOSE_PROFILES=telegram in .env (see README.md).
 
 x-backend-env: &backend-env
-  DATABASE_URL: postgresql+psycopg://niksi:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/niksi
+  # Bundled db by default; docker-compose.server.yml points it to an existing PostgreSQL.
+  DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://niksi:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/niksi}
   SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
   COOKIE_SECURE: ${COOKIE_SECURE:-false}
   TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
@@ -25,7 +26,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: niksi
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
       POSTGRES_DB: niksi
     volumes:
       - db-data:/var/lib/postgresql/data

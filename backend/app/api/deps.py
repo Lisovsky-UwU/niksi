@@ -104,7 +104,7 @@ COOKIE_NAME = "access_token"
 
 _password_hasher = Argon2PasswordHasher()
 _token_service = JwtTokenService(settings.secret_key, settings.jwt_algorithm, settings.jwt_expires_days)
-_notifier = TelegramNotifier(settings.telegram_bot_token)
+_notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_api_url)
 
 
 # ---- repositories ----

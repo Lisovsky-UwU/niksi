@@ -5,6 +5,8 @@ import logging
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.telegram import TelegramAPIServer
 from aiogram.enums import ParseMode
 
 from app.core.config import settings
@@ -16,7 +18,8 @@ log = logging.getLogger("app.telegram")
 async def main() -> None:
     if not settings.telegram_bot_token:
         raise SystemExit("TELEGRAM_BOT_TOKEN is not set in backend/.env (see 'Telegram-бот' in the root README.md)")
-    bot = Bot(settings.telegram_bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    session = AiohttpSession(api=TelegramAPIServer.from_base(settings.telegram_api_url))
+    bot = Bot(settings.telegram_bot_token, session=session, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     me = await bot.get_me()
     log.info("Running as @%s", me.username)
     if not me.can_read_all_group_messages:

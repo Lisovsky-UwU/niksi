@@ -111,6 +111,7 @@ Caddy сам получит и будет продлевать сертифик�
 | `COMPOSE_PROFILES` | `telegram` запускает бота | пусто |
 | `TELEGRAM_BOT_TOKEN` | токен от @BotFather | пусто |
 | `TELEGRAM_BOT_USERNAME` | имя бота без @, для ссылки привязки | пусто |
+| `TELEGRAM_API_URL` | адрес Bot API: зеркало, прокси или свой `telegram-bot-api` | `https://api.telegram.org` |
 | `TELEGRAM_SUMMARY_TIME` | время вечерней сводки | `21:00` |
 | `TELEGRAM_TIMEZONE` | часовой пояс сводки | `Europe/Moscow` |
 | `SEED_USER{1,2}_{EMAIL,PASSWORD,NAME}` | два аккаунта для `seed_users` | пусто |

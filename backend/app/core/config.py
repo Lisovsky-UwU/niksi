@@ -12,8 +12,10 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
 
     # Telegram bot (optional): token from @BotFather, when the evening summary is sent and
-    # in which timezone that time is.
+    # in which timezone that time is. The API URL can point to a mirror/proxy or a local
+    # telegram-bot-api server when api.telegram.org is unreachable.
     telegram_bot_token: str | None = None
+    telegram_api_url: str = "https://api.telegram.org"
     telegram_bot_username: str | None = None
     telegram_summary_time: str = "21:00"
     telegram_timezone: str = "Europe/Moscow"

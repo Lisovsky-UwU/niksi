@@ -19,6 +19,7 @@ const flows = computed(() => {
     { label: 'Серая зона', value: -toNumber(f.grey_zone) },
     { label: 'В накопления', value: -toNumber(f.savings_in) },
     { label: 'Из накоплений', value: toNumber(f.savings_out) },
+    { label: 'Кредиты', value: -toNumber(f.loan_payments) },
   ].filter((row) => row.value !== 0)
 })
 

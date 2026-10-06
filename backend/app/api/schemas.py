@@ -8,7 +8,7 @@ from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
 
-from app.domain.models import CategoryColor, SavingsPotKind, SavingsTransferDirection
+from app.domain.models import CategoryColor, LoanPaymentKind, SavingsPotKind, SavingsTransferDirection
 
 
 class LoginRequest(BaseModel):
@@ -114,6 +114,29 @@ class SavingsTransferCreateRequest(BaseModel):
     direction: SavingsTransferDirection
     amount: Decimal = Field(gt=0)
     transfer_date: date
+    note: str | None = Field(default=None, max_length=200)
+
+
+class LoanCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    principal: Decimal = Field(gt=0)
+    start_date: date
+    rate_percent: Decimal = Field(ge=0, lt=100)
+    monthly_payment: Decimal = Field(gt=0)
+    payment_day: int = Field(ge=1, le=31)
+
+
+class LoanUpdateRequest(LoanCreateRequest):
+    is_closed: bool = False
+
+
+class LoanPaymentCreateRequest(BaseModel):
+    kind: LoanPaymentKind
+    # The money paid, for regular and early payments.
+    amount: Decimal | None = Field(default=None, gt=0)
+    # The bank's balance, for a correction.
+    new_balance: Decimal | None = Field(default=None, ge=0)
+    payment_date: date
     note: str | None = Field(default=None, max_length=200)
 
 

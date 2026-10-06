@@ -11,17 +11,19 @@ saying what happened, then the amounts, the person and the comment, then the bal
 import secrets
 import time
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from html import escape
 
 from sqlalchemy.orm import Session
 
 from app.domain.exceptions import DomainError
-from app.domain.models import Expense, Month, User
+from app.domain.loans import final_payment
+from app.domain.models import Expense, Loan, Month, User
 from app.domain.periods import estimated_end
 from app.domain.text import (
     MONTHS_NOMINATIVE,
+    MONTHS_PREPOSITIONAL,
     card,
     day_month,
     expense_card,
@@ -33,6 +35,7 @@ from app.infrastructure.repositories.sqlalchemy_category_repository import SqlAl
 from app.infrastructure.repositories.sqlalchemy_expense_repository import SqlAlchemyExpenseRepository
 from app.infrastructure.repositories.sqlalchemy_grey_zone_repository import SqlAlchemyGreyZoneRepository
 from app.infrastructure.repositories.sqlalchemy_income_repository import SqlAlchemyIncomeRepository
+from app.infrastructure.repositories.sqlalchemy_loan_repository import SqlAlchemyLoanRepository
 from app.infrastructure.repositories.sqlalchemy_month_repository import SqlAlchemyMonthRepository
 from app.infrastructure.repositories.sqlalchemy_reconciliation_repository import SqlAlchemyReconciliationRepository
 from app.infrastructure.repositories.sqlalchemy_savings_repository import SqlAlchemySavingsRepository
@@ -42,6 +45,7 @@ from app.telegram.parsing import parse_amount, parse_expense, parse_income
 from app.use_cases.expenses import AddExpenseUseCase, DeleteExpenseUseCase, ListExpensesUseCase, UpdateExpenseUseCase
 from app.use_cases.grey_zone import TakeFromGreyZoneUseCase
 from app.use_cases.income import AddIncomeEntryUseCase
+from app.use_cases.loans import AddLoanPaymentUseCase
 from app.use_cases.summary import GetMonthSummaryUseCase
 from app.use_cases.telegram import (
     BindChatUseCase,
@@ -95,7 +99,10 @@ HELP = card(
     "/cats остаток по категориям\n"
     "/month итог месяца\n"
     "/last последние траты\n"
-    "/undo удалить свою последнюю трату",
+    "/undo удалить свою последнюю трату\n"
+    "/credits кредиты: остаток и ближайшие платежи",
+    "🏦 <b>Кредиты:</b> накануне платежа напомню в общей беседе, "
+    "оплату можно отметить кнопкой под напоминанием.",
     "⚙️ <b>Настройка</b>\n"
     "/link КОД привязать Telegram (код в настройках приложения)\n"
     "/bind сделать эту беседу общей\n"
@@ -125,6 +132,7 @@ class BotService:
         self._income = SqlAlchemyIncomeRepository(db)
         self._grey = SqlAlchemyGreyZoneRepository(db)
         self._chats = SqlAlchemyTelegramChatRepository(db)
+        self._loans = SqlAlchemyLoanRepository(db)
         self._summary = GetMonthSummaryUseCase(
             self._months,
             self._categories,
@@ -134,6 +142,7 @@ class BotService:
             self._grey,
             SqlAlchemySavingsRepository(db),
             SqlAlchemyReconciliationRepository(db),
+            self._loans,
         )
 
     # ---- who and where ----
@@ -362,6 +371,9 @@ class BotService:
                     int(expense_id), None, None, None, int(category_id)
                 )
                 return self._expense_reply(updated, "Категория изменена")
+            if kind == "loanpay":
+                loan_id, _, due = rest.partition(":")
+                return self._pay_loan(user, int(loan_id), date.fromisoformat(due))
         except DomainError:
             return self._problem("Не получилось: запись уже изменилась. Проверьте её в приложении.")
         return None
@@ -442,6 +454,8 @@ class BotService:
             ("− Серая зона", b.grey_zone_taken),
             ("− В накопления" if b.savings_net >= 0 else "+ Из накоплений", abs(b.savings_net)),
         ]
+        if b.loan_payments:
+            rows.append(("− Кредиты", b.loan_payments))
         if b.adjustments:
             rows.append(("± Сверка", b.adjustments))
         width = max(len(label) for label, _ in rows) + 2
@@ -517,6 +531,85 @@ class BotService:
             status = f"📊 В лимите осталось <b>{money(mine.remaining)}</b> из {money(mine.limit)}"
         what = f"➖ <b>{money(amount)}</b> взято себе\n👤 {escape(user.display_name)}"
         return Reply(card("🫥", "Серая зона", what, status))
+
+    # ---- loans ----
+
+    def _due_line(self, loan: Loan) -> str:
+        due = loan.next_payment_date
+        if due is None:
+            return "✅ Выплачен"
+        amount = money(final_payment(loan.balance, loan.rate_percent, loan.monthly_payment))
+        if due < self._today:
+            return f"🔴 Платеж {amount} просрочен, был {day_month(due)}"
+        if due == self._today:
+            return f"📌 Платеж {amount} сегодня"
+        if due == self._today + timedelta(days=1):
+            return f"📌 Платеж {amount} завтра"
+        return f"🗓 Платеж {amount}, {day_month(due)}"
+
+    def _loan_lines(self, loan: Loan) -> list[str]:
+        lines = [f"<b>{escape(loan.name)}</b>", f"💳 Остаток долга <b>{money(loan.balance)}</b>", self._due_line(loan)]
+        if loan.payoff_date and loan.payments_left:
+            left = loan.payments_left
+            lines.append(
+                f"🏁 Закроется примерно в {MONTHS_PREPOSITIONAL[loan.payoff_date.month - 1]} "
+                f"{loan.payoff_date.year}, еще {left} {plural(left, 'платеж', 'платежа', 'платежей')}"
+            )
+        return lines
+
+    def credits(self, telegram_user_id: int) -> Reply:
+        if self.user(telegram_user_id) is None:
+            return self.not_linked()
+        loans = [loan for loan in self._loans.list_loans() if not loan.is_closed]
+        if not loans:
+            return Reply(card("🏦", "Кредиты", 'Кредитов нет. Завести их можно в приложении, раздел "Деньги".'))
+        blocks = ["\n".join(self._loan_lines(loan)) for loan in loans]
+        total = sum((loan.balance for loan in loans), Decimal(0))
+        monthly = sum((loan.monthly_payment for loan in loans if loan.balance > 0), Decimal(0))
+        blocks.append(f"Всего долг <b>{money(total)}</b>, платежи <b>{money(monthly)}</b> в месяц")
+        return Reply(card("🏦", "Кредиты", *blocks))
+
+    def loan_reminders(self) -> tuple[int, list[Reply]] | None:
+        """For the shared chat: a payment due tomorrow, today or overdue, once per payment date."""
+        chat = self._chats.get()
+        if chat is None:
+            return None
+        tomorrow = self._today + timedelta(days=1)
+        replies = []
+        for loan in self._loans.list_loans():
+            due = loan.next_payment_date
+            if due is None or due > tomorrow or loan.last_reminded_due == due:
+                continue
+            self._loans.set_last_reminded_due(loan.id, due)
+            amount = final_payment(loan.balance, loan.rate_percent, loan.monthly_payment)
+            title = {tomorrow: "Завтра платеж по кредиту", self._today: "Сегодня платеж по кредиту"}.get(
+                due, "Платеж по кредиту просрочен"
+            )
+            what = f"<b>{escape(loan.name)}</b>\n💸 <b>{money(amount)}</b>, {day_month(due)}"
+            replies.append(
+                Reply(
+                    card("🏦", title, what, f"💳 Остаток долга {money(loan.balance)}"),
+                    [[Button(f"✅ Оплачено {money(amount)}", f"loanpay:{loan.id}:{due.isoformat()}")]],
+                )
+            )
+        return (chat.chat_id, replies) if replies else None
+
+    def _pay_loan(self, user: User, loan_id: int, due: date) -> Reply:
+        """The "Оплачено" button: records the regular payment the reminder was about, once."""
+        loan = self._loans.get_loan(loan_id)
+        if loan is None:
+            return self._problem("Этого кредита уже нет.")
+        if loan.next_payment_date != due:
+            return Reply(card("👌", "Этот платеж уже записан", "\n".join(self._loan_lines(loan))))
+        amount = final_payment(loan.balance, loan.rate_percent, loan.monthly_payment)
+        payment = AddLoanPaymentUseCase(self._loans).execute(loan.id, "regular", amount, None, self._today, None, user.id)
+        loan = self._loans.get_loan(loan_id)
+        assert loan is not None
+        what = (
+            f"💸 <b>{money(payment.amount)}</b>: {money(payment.principal_part)} в счет долга, "
+            f"{money(payment.interest_part)} проценты\n👤 {escape(user.display_name)}"
+        )
+        return Reply(card("✅", "Платеж записан", what, "\n".join(self._loan_lines(loan))))
 
     # ---- evening summary ----
 

@@ -16,6 +16,7 @@ from app.infrastructure.repositories.sqlalchemy_expense_repository import SqlAlc
 from app.infrastructure.repositories.sqlalchemy_grey_zone_repository import SqlAlchemyGreyZoneRepository
 from app.infrastructure.repositories.sqlalchemy_income_repository import SqlAlchemyIncomeRepository
 from app.infrastructure.repositories.sqlalchemy_ledger_repository import SqlAlchemyLedgerRepository
+from app.infrastructure.repositories.sqlalchemy_loan_repository import SqlAlchemyLoanRepository
 from app.infrastructure.repositories.sqlalchemy_month_repository import SqlAlchemyMonthRepository
 from app.infrastructure.repositories.sqlalchemy_reconciliation_repository import SqlAlchemyReconciliationRepository
 from app.infrastructure.repositories.sqlalchemy_savings_repository import SqlAlchemySavingsRepository
@@ -29,6 +30,7 @@ from app.interfaces.repositories import (
     GreyZoneRepository,
     IncomeRepository,
     LedgerRepository,
+    LoanRepository,
     MonthRepository,
     ReconciliationRepository,
     SavingsRepository,
@@ -62,6 +64,15 @@ from app.use_cases.income import (
     GetIncomeForMonthUseCase,
     ListIncomeEntriesUseCase,
     SetMyIncomeUseCase,
+)
+from app.use_cases.loans import (
+    AddLoanPaymentUseCase,
+    CreateLoanUseCase,
+    DeleteLoanPaymentUseCase,
+    DeleteLoanUseCase,
+    ListLoanPaymentsUseCase,
+    ListLoansUseCase,
+    UpdateLoanUseCase,
 )
 from app.use_cases.months import (
     CopyPlansFromPreviousMonthUseCase,
@@ -136,6 +147,10 @@ def get_grey_zone_repository(db: Session = Depends(get_db)) -> GreyZoneRepositor
 
 def get_savings_repository(db: Session = Depends(get_db)) -> SavingsRepository:
     return SqlAlchemySavingsRepository(db)
+
+
+def get_loan_repository(db: Session = Depends(get_db)) -> LoanRepository:
+    return SqlAlchemyLoanRepository(db)
 
 
 def get_reconciliation_repository(db: Session = Depends(get_db)) -> ReconciliationRepository:
@@ -420,6 +435,38 @@ def get_delete_savings_transfer_use_case(
     return DeleteSavingsTransferUseCase(savings_repo)
 
 
+def get_list_loans_use_case(loan_repo: LoanRepository = Depends(get_loan_repository)) -> ListLoansUseCase:
+    return ListLoansUseCase(loan_repo)
+
+
+def get_create_loan_use_case(loan_repo: LoanRepository = Depends(get_loan_repository)) -> CreateLoanUseCase:
+    return CreateLoanUseCase(loan_repo)
+
+
+def get_update_loan_use_case(loan_repo: LoanRepository = Depends(get_loan_repository)) -> UpdateLoanUseCase:
+    return UpdateLoanUseCase(loan_repo)
+
+
+def get_delete_loan_use_case(loan_repo: LoanRepository = Depends(get_loan_repository)) -> DeleteLoanUseCase:
+    return DeleteLoanUseCase(loan_repo)
+
+
+def get_list_loan_payments_use_case(
+    loan_repo: LoanRepository = Depends(get_loan_repository),
+) -> ListLoanPaymentsUseCase:
+    return ListLoanPaymentsUseCase(loan_repo)
+
+
+def get_add_loan_payment_use_case(loan_repo: LoanRepository = Depends(get_loan_repository)) -> AddLoanPaymentUseCase:
+    return AddLoanPaymentUseCase(loan_repo)
+
+
+def get_delete_loan_payment_use_case(
+    loan_repo: LoanRepository = Depends(get_loan_repository),
+) -> DeleteLoanPaymentUseCase:
+    return DeleteLoanPaymentUseCase(loan_repo)
+
+
 def get_balance_status_use_case(
     reconciliation_repo: ReconciliationRepository = Depends(get_reconciliation_repository),
     ledger_repo: LedgerRepository = Depends(get_ledger_repository),
@@ -455,6 +502,7 @@ def get_month_summary_use_case(
     grey_zone_repo: GreyZoneRepository = Depends(get_grey_zone_repository),
     savings_repo: SavingsRepository = Depends(get_savings_repository),
     reconciliation_repo: ReconciliationRepository = Depends(get_reconciliation_repository),
+    loan_repo: LoanRepository = Depends(get_loan_repository),
 ) -> GetMonthSummaryUseCase:
     return GetMonthSummaryUseCase(
         month_repo,
@@ -465,6 +513,7 @@ def get_month_summary_use_case(
         grey_zone_repo,
         savings_repo,
         reconciliation_repo,
+        loan_repo,
     )
 
 

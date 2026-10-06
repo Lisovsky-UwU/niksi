@@ -32,6 +32,7 @@ COMMANDS = [
     BotCommand(command="month", description="Итог месяца"),
     BotCommand(command="last", description="Последние траты"),
     BotCommand(command="undo", description="Удалить свою последнюю трату"),
+    BotCommand(command="credits", description="Кредиты: остаток и ближайшие платежи"),
     BotCommand(command="grey", description="Взять из серой зоны: /grey 3000"),
     BotCommand(command="add", description="Записать трату: /add 450 продукты"),
     BotCommand(command="help", description="Как пользоваться"),
@@ -119,6 +120,7 @@ _VIEWS: dict[str, Callable[[BotService, int], Reply]] = {
     "month": lambda s, uid: s.month(uid),
     "last": lambda s, uid: s.last(uid),
     "undo": lambda s, uid: s.undo(uid),
+    "credits": lambda s, uid: s.credits(uid),
 }
 
 
@@ -171,7 +173,8 @@ async def button(query: CallbackQuery) -> None:
 
 
 async def summary_loop(bot: Bot) -> None:
-    """Once a minute: after TELEGRAM_SUMMARY_TIME, send the day's summary if not sent yet."""
+    """Once a minute: after TELEGRAM_SUMMARY_TIME, send the day's summary if not sent yet;
+    after TELEGRAM_REMINDER_TIME, remind about loan payments due."""
     while True:
         try:
             if now().strftime("%H:%M") >= settings.telegram_summary_time:
@@ -180,4 +183,13 @@ async def summary_loop(bot: Bot) -> None:
                     await bot.send_message(*result)
         except Exception:  # a failed summary must not stop the bot
             log.exception("Evening summary failed")
+        try:
+            if now().strftime("%H:%M") >= settings.telegram_reminder_time:
+                reminders = await call(lambda s: s.loan_reminders())
+                if reminders is not None:
+                    chat_id, replies = reminders
+                    for reply in replies:
+                        await bot.send_message(chat_id, reply.text, reply_markup=_markup(reply))
+        except Exception:
+            log.exception("Loan reminders failed")
         await asyncio.sleep(60)

@@ -10,7 +10,9 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, computed_field
+
+from app.domain.loans import forecast, months_after, nth_payment_date
 
 
 class User(BaseModel):
@@ -190,6 +192,72 @@ class SavingsTransfer(BaseModel):
     created_by_user_id: int
 
 
+# regular: the monthly payment, split into interest and principal; early: an early
+# repayment, all of it goes to the principal; correction: the balance set to the bank's
+# figure, no money moves. Only regular and early payments leave the shared budget.
+LoanPaymentKind = Literal["regular", "early", "correction"]
+
+
+class Loan(BaseModel):
+    """A bank loan. `principal` is the debt when the loan was added to the app; the balance
+    is what is left after the principal parts of its payments."""
+
+    id: int
+    name: str
+    principal: Decimal
+    start_date: date
+    rate_percent: Decimal
+    monthly_payment: Decimal
+    payment_day: int
+    is_closed: bool = False
+    balance: Decimal
+    regular_payments: int = 0
+    # Which payment date the bot has already reminded about; internal only.
+    last_reminded_due: date | None = Field(default=None, exclude=True)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def next_payment_date(self) -> date | None:
+        if self.is_closed or self.balance <= 0:
+            return None
+        return nth_payment_date(self.start_date, self.payment_day, self.regular_payments + 1)
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def payments_left(self) -> int | None:
+        """None when the monthly payment does not cover the interest."""
+        result = forecast(self.balance, self.rate_percent, self.monthly_payment)
+        return result.payments_left if result else None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def interest_left(self) -> Decimal | None:
+        result = forecast(self.balance, self.rate_percent, self.monthly_payment)
+        return result.interest_left if result else None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def payoff_date(self) -> date | None:
+        next_date, left = self.next_payment_date, self.payments_left
+        if next_date is None or not left:
+            return None
+        return months_after(next_date, self.payment_day, left - 1)
+
+
+class LoanPayment(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    loan_id: int
+    kind: LoanPaymentKind
+    amount: Decimal
+    interest_part: Decimal
+    principal_part: Decimal
+    payment_date: date
+    note: str | None = None
+    created_by_user_id: int
+
+
 class Reconciliation(BaseModel):
     """A check of how much money is really on hand against what the records say.
 
@@ -218,10 +286,13 @@ class CashFlows(BaseModel):
     grey_zone: Decimal = Decimal(0)
     savings_in: Decimal = Decimal(0)
     savings_out: Decimal = Decimal(0)
+    loan_payments: Decimal = Decimal(0)
 
     @property
     def net(self) -> Decimal:
-        return self.income - self.expenses - self.grey_zone - self.savings_in + self.savings_out
+        return (
+            self.income - self.expenses - self.grey_zone - self.savings_in + self.savings_out - self.loan_payments
+        )
 
 
 class BalanceStatus(BaseModel):
@@ -274,7 +345,7 @@ class IncomeSummary(BaseModel):
 
 
 class BalanceSummary(BaseModel):
-    """Where the month's money went: net = income - spent - grey zone - savings + adjustments.
+    """Where the month's money went: net = income - spent - grey zone - savings - loan payments + adjustments.
 
     `adjustments` are reconciliation differences dated within the month.
     """
@@ -283,6 +354,7 @@ class BalanceSummary(BaseModel):
     total_spent: Decimal
     grey_zone_taken: Decimal
     savings_net: Decimal
+    loan_payments: Decimal
     adjustments: Decimal
     net: Decimal
 

@@ -4,7 +4,7 @@ import { RouterView } from 'vue-router'
 import TabNav from '../components/TabNav.vue'
 import { useMoneyStore } from '../stores/money'
 
-// Layout for money that lives outside a single month: reconciliation and savings tabs.
+// Layout for money that lives outside a single month: reconciliation, savings and loans tabs.
 const money = useMoneyStore()
 const loading = ref(true)
 const loadError = ref('')
@@ -13,6 +13,7 @@ const tabs = [
   { label: 'Сверка', to: { name: 'money' } },
   { label: 'Накопления', to: { name: 'money-savings' } },
   { label: 'Архив', to: { name: 'money-archive' } },
+  { label: 'Кредиты', to: { name: 'money-loans' } },
 ]
 
 onMounted(async () => {

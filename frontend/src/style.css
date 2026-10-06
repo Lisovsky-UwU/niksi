@@ -32,6 +32,8 @@
   --grey-zone: #6b6f80;
   /* Reconciliation differences: an amber pencil. */
   --amber: #a86f00;
+  /* Loan payments: a wine-coloured pencil, darker and quieter than the red of overspending. */
+  --loan: #8e3b5f;
 
   /* Coloured pencils for categories, ordered so neighbours differ strongly.
      Red (overspending) and ink blue (actions) are deliberately not in the box. */
@@ -82,6 +84,7 @@
     --green: #6fd3b0;
     --grey-zone: #a3a9ba;
     --amber: #e8b54d;
+    --loan: #e597b8;
     --cat-0: #f0a061;
     --cat-1: #5fcdc4;
     --cat-2: #b596f2;

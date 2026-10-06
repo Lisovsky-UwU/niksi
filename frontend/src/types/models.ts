@@ -114,6 +114,42 @@ export interface SavingsTransfer {
   created_by_user_id: number
 }
 
+/** regular: the monthly payment; early: early repayment; correction: balance set to the bank's figure */
+export type LoanPaymentKind = 'regular' | 'early' | 'correction'
+
+export interface Loan {
+  id: number
+  name: string
+  /** the debt when the loan was added to the app */
+  principal: string
+  start_date: string
+  /** yearly, e.g. "12.500" */
+  rate_percent: string
+  monthly_payment: string
+  payment_day: number
+  is_closed: boolean
+  balance: string
+  regular_payments: number
+  /** null when paid off or closed */
+  next_payment_date: string | null
+  /** null when the payment does not cover the interest */
+  payments_left: number | null
+  interest_left: string | null
+  payoff_date: string | null
+}
+
+export interface LoanPayment {
+  id: number
+  loan_id: number
+  kind: LoanPaymentKind
+  amount: string
+  interest_part: string
+  principal_part: string
+  payment_date: string
+  note: string | null
+  created_by_user_id: number
+}
+
 export interface Reconciliation {
   id: number
   balance_date: string
@@ -131,6 +167,7 @@ export interface CashFlows {
   grey_zone: string
   savings_in: string
   savings_out: string
+  loan_payments: string
 }
 
 export interface BalanceStatus {
@@ -185,6 +222,7 @@ export interface MonthSummary {
     total_spent: string
     grey_zone_taken: string
     savings_net: string
+    loan_payments: string
     adjustments: string
     net: string
   }
@@ -267,6 +305,29 @@ export interface SavingsTransferCreateRequest {
   direction: SavingsTransferDirection
   amount: string
   transfer_date: string
+  note?: string | null
+}
+
+export interface LoanCreateRequest {
+  name: string
+  principal: string
+  start_date: string
+  rate_percent: string
+  monthly_payment: string
+  payment_day: number
+}
+
+export interface LoanUpdateRequest extends LoanCreateRequest {
+  is_closed: boolean
+}
+
+export interface LoanPaymentCreateRequest {
+  kind: LoanPaymentKind
+  /** for regular and early payments */
+  amount?: string | null
+  /** for a correction: the balance in the bank's app */
+  new_balance?: string | null
+  payment_date: string
   note?: string | null
 }
 

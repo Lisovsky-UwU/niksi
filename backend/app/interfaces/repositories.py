@@ -19,6 +19,9 @@ from app.domain.models import (
     GreyZoneLimit,
     Income,
     IncomeEntry,
+    Loan,
+    LoanPayment,
+    LoanPaymentKind,
     Month,
     Reconciliation,
     SavingsPot,
@@ -312,6 +315,80 @@ class SavingsRepository(ABC):
     @abstractmethod
     def sum_budget_flows_between(self, start: date, end: date) -> tuple[Decimal, Decimal]:
         """(moved into pots, moved back out) for transfers dated start..end inclusive. Interest is ignored."""
+        ...
+
+
+class LoanRepository(ABC):
+    @abstractmethod
+    def list_loans(self) -> list[Loan]:
+        """Open loans first, then closed ones."""
+        ...
+
+    @abstractmethod
+    def get_loan(self, loan_id: int) -> Loan | None: ...
+
+    @abstractmethod
+    def create_loan(
+        self,
+        name: str,
+        principal: Decimal,
+        start_date: date,
+        rate_percent: Decimal,
+        monthly_payment: Decimal,
+        payment_day: int,
+    ) -> Loan: ...
+
+    @abstractmethod
+    def update_loan(
+        self,
+        loan_id: int,
+        name: str,
+        principal: Decimal,
+        start_date: date,
+        rate_percent: Decimal,
+        monthly_payment: Decimal,
+        payment_day: int,
+        is_closed: bool,
+    ) -> Loan:
+        """Replaces all editable fields at once (PUT semantics)."""
+        ...
+
+    @abstractmethod
+    def delete_loan(self, loan_id: int) -> None: ...
+
+    @abstractmethod
+    def has_payments(self, loan_id: int) -> bool: ...
+
+    @abstractmethod
+    def set_last_reminded_due(self, loan_id: int, due: date) -> None: ...
+
+    @abstractmethod
+    def list_payments(self, loan_id: int) -> list[LoanPayment]:
+        """Newest first."""
+        ...
+
+    @abstractmethod
+    def get_payment(self, payment_id: int) -> LoanPayment | None: ...
+
+    @abstractmethod
+    def create_payment(
+        self,
+        loan_id: int,
+        kind: LoanPaymentKind,
+        amount: Decimal,
+        interest_part: Decimal,
+        principal_part: Decimal,
+        payment_date: date,
+        note: str | None,
+        created_by_user_id: int,
+    ) -> LoanPayment: ...
+
+    @abstractmethod
+    def delete_payment(self, payment_id: int) -> None: ...
+
+    @abstractmethod
+    def sum_budget_payments_between(self, start: date, end: date) -> Decimal:
+        """Money paid from the budget (regular and early payments) dated start..end inclusive."""
         ...
 
 

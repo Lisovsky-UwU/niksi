@@ -65,6 +65,13 @@ const router = createRouter({
         { path: '', name: 'money', component: () => import('../views/MoneyReconcile.vue') },
         { path: 'savings', name: 'money-savings', component: () => import('../components/SavingsSection.vue') },
         { path: 'archive', name: 'money-archive', component: () => import('../components/SavingsArchive.vue') },
+        { path: 'loans', name: 'money-loans', component: () => import('../components/LoansSection.vue') },
+        {
+          path: 'loans/:loanId',
+          name: 'money-loan',
+          component: () => import('../views/LoanView.vue'),
+          props: true,
+        },
         {
           path: 'pots/:potId',
           name: 'money-pot',

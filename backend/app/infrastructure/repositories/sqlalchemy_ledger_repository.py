@@ -6,7 +6,13 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.domain.models import CashFlows
-from app.infrastructure.db.orm_models import ExpenseORM, GreyZoneEntryORM, IncomeEntryORM, SavingsTransferORM
+from app.infrastructure.db.orm_models import (
+    ExpenseORM,
+    GreyZoneEntryORM,
+    IncomeEntryORM,
+    LoanPaymentORM,
+    SavingsTransferORM,
+)
 from app.interfaces.repositories import LedgerRepository
 
 
@@ -35,4 +41,9 @@ class SqlAlchemyLedgerRepository(LedgerRepository):
             grey_zone=self._sum(GreyZoneEntryORM.amount, window(GreyZoneEntryORM, GreyZoneEntryORM.taken_date)),
             savings_in=self._sum(SavingsTransferORM.amount, savings_window, SavingsTransferORM.direction == "in"),
             savings_out=self._sum(SavingsTransferORM.amount, savings_window, SavingsTransferORM.direction == "out"),
+            loan_payments=self._sum(
+                LoanPaymentORM.amount,
+                window(LoanPaymentORM, LoanPaymentORM.payment_date),
+                LoanPaymentORM.kind.in_(("regular", "early")),
+            ),
         )

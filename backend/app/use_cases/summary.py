@@ -19,6 +19,7 @@ from app.interfaces.repositories import (
     ExpenseRepository,
     GreyZoneRepository,
     IncomeRepository,
+    LoanRepository,
     MonthRepository,
     ReconciliationRepository,
     SavingsRepository,
@@ -49,6 +50,7 @@ class GetMonthSummaryUseCase:
         grey_zone_repo: GreyZoneRepository,
         savings_repo: SavingsRepository,
         reconciliation_repo: ReconciliationRepository,
+        loan_repo: LoanRepository,
     ) -> None:
         self._month_repo = month_repo
         self._category_repo = category_repo
@@ -58,6 +60,7 @@ class GetMonthSummaryUseCase:
         self._grey_zone_repo = grey_zone_repo
         self._savings_repo = savings_repo
         self._reconciliation_repo = reconciliation_repo
+        self._loan_repo = loan_repo
 
     def _balance(self, month: Month) -> BalanceSummary:
         start, end = _month_bounds(month)
@@ -66,14 +69,16 @@ class GetMonthSummaryUseCase:
         grey_zone = sum(self._grey_zone_repo.sum_taken_by_user(month.id).values(), Decimal(0))
         saved_in, saved_out = self._savings_repo.sum_budget_flows_between(start, end)
         savings_net = saved_in - saved_out
+        loan_payments = self._loan_repo.sum_budget_payments_between(start, end)
         adjustments = self._reconciliation_repo.sum_difference_between(start, end)
         return BalanceSummary(
             income_actual=income,
             total_spent=spent,
             grey_zone_taken=grey_zone,
             savings_net=savings_net,
+            loan_payments=loan_payments,
             adjustments=adjustments,
-            net=income - spent - grey_zone - savings_net + adjustments,
+            net=income - spent - grey_zone - savings_net - loan_payments + adjustments,
         )
 
     def _carried_over(self, month: Month) -> Decimal:

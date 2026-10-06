@@ -165,6 +165,40 @@ class SavingsTransferORM(Base):
     pot: Mapped["SavingsPotORM"] = relationship(back_populates="transfers")
 
 
+class LoanORM(Base):
+    __tablename__ = "loans"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    principal: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    start_date: Mapped[date] = mapped_column(Date)
+    rate_percent: Mapped[Decimal] = mapped_column(Numeric(6, 3))
+    monthly_payment: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    payment_day: Mapped[int] = mapped_column(Integer)
+    is_closed: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_reminded_due: Mapped[date | None] = mapped_column(Date, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    payments: Mapped[list["LoanPaymentORM"]] = relationship(back_populates="loan", cascade="all, delete-orphan")
+
+
+class LoanPaymentORM(Base):
+    __tablename__ = "loan_payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    interest_part: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    principal_part: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    payment_date: Mapped[date] = mapped_column(Date)
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    created_by_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    loan: Mapped["LoanORM"] = relationship(back_populates="payments")
+
+
 class ReconciliationORM(Base):
     __tablename__ = "reconciliations"
 

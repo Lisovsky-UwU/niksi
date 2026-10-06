@@ -236,3 +236,45 @@ def test_shared_chat_notifications_and_evening_summary(client: TestClient, bot) 
     # Once a day.
     assert service().daily_summary() is None
     assert service(NOW + timedelta(days=1)).daily_summary() is not None
+
+
+def test_loans_credits_reminders_and_the_paid_button(client: TestClient, bot) -> None:  # type: ignore[no-untyped-def]
+    service = bot["service"]
+    assert "Кредитов нет" in service().credits(NIK_TG).text
+    loan = client.post(
+        "/api/loans",
+        json={
+            "name": "Ипотека",
+            "principal": "100000",
+            "start_date": "2026-09-01",
+            "rate_percent": "12",
+            "monthly_payment": "10000",
+            "payment_day": 21,
+        },
+    ).json()
+
+    credits = service().credits(NIK_TG).text
+    assert "Ипотека" in credits and "100 000" in credits and "завтра" in credits
+
+    # Reminders go to the shared chat only.
+    assert service().loan_reminders() is None
+    service().bind(NIK_TG, CHAT, is_private=False)
+    reminders = service().loan_reminders()
+    assert reminders is not None
+    chat_id, [reminder] = reminders
+    assert chat_id == CHAT and "Завтра платеж" in reminder.text
+    [[button]] = reminder.buttons
+    assert button.data == f"loanpay:{loan['id']}:2026-09-21"
+    # Once per payment date.
+    assert service().loan_reminders() is None
+
+    paid = service().callback(PAIR_TG, button.data)
+    assert paid is not None and "Платеж записан" in paid.text and "Сюса" in paid.text
+    again = service().callback(NIK_TG, button.data)
+    assert again is not None and "уже записан" in again.text
+    [payment] = client.get(f"/api/loans/{loan['id']}/payments").json()
+    assert (payment["amount"], payment["interest_part"], payment["payment_date"]) == ("10000.00", "1000.00", "2026-09-20")
+
+    # The next payment is a month later, nothing to remind about yet.
+    assert service().loan_reminders() is None
+    assert service(NOW + timedelta(days=31)).loan_reminders() is not None

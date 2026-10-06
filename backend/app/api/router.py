@@ -1,6 +1,18 @@
 from fastapi import APIRouter
 
-from app.api.routes import auth, balance, categories, expenses, grey_zone, income, months, savings, summary, users
+from app.api.routes import (
+    auth,
+    balance,
+    categories,
+    expenses,
+    grey_zone,
+    income,
+    loans,
+    months,
+    savings,
+    summary,
+    users,
+)
 
 router = APIRouter(prefix="/api")
 router.include_router(auth.router)
@@ -17,4 +29,5 @@ router.include_router(grey_zone.entries_router)
 router.include_router(summary.router)
 router.include_router(months.router)
 router.include_router(savings.router)
+router.include_router(loans.router)
 router.include_router(balance.router)

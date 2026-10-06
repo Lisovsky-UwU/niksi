@@ -12,21 +12,23 @@ const summary = computed(() => store.summary)
 const balance = computed(() => summary.value?.balance)
 const carryover = computed(() => summary.value?.carryover)
 
-type Kind = 'income' | 'expenses' | 'grey' | 'savings' | 'adjust'
+type Kind = 'income' | 'expenses' | 'grey' | 'savings' | 'loans' | 'adjust'
 
 // Where the month's money went, in the order it flows. Each kind has its own colour.
-// The reconciliation tile only appears when there was a difference.
+// Loan payments and the reconciliation only appear when there were any.
 const tiles = computed(() => {
   const b = balance.value
   if (!b) return []
   const savings = toNumber(b.savings_net)
   const adjust = toNumber(b.adjustments)
+  const loans = toNumber(b.loan_payments)
   const rows: { kind: Kind; label: string; value: number }[] = [
     { kind: 'income', label: 'Доходы', value: toNumber(b.income_actual) },
     { kind: 'expenses', label: 'Траты', value: -toNumber(b.total_spent) },
     { kind: 'grey', label: 'Серая зона', value: -toNumber(b.grey_zone_taken) },
     { kind: 'savings', label: savings >= 0 ? 'В накопления' : 'Из накоплений', value: -savings },
   ]
+  if (loans !== 0) rows.push({ kind: 'loans', label: 'Кредиты', value: -loans })
   if (adjust !== 0) rows.push({ kind: 'adjust', label: 'Расхождение сверки', value: adjust })
   return rows
 })
@@ -170,6 +172,10 @@ watch(summary, () => money.refreshBalance().catch(() => undefined))
 
 .is-savings {
   --tone: var(--green);
+}
+
+.is-loans {
+  --tone: var(--loan);
 }
 
 .is-adjust {

@@ -11,13 +11,14 @@ class Settings(BaseSettings):
     jwt_expires_days: int = 30
     cookie_secure: bool = True
 
-    # Telegram bot (optional): token from @BotFather, when the evening summary is sent and
-    # in which timezone that time is. The API URL can point to a mirror/proxy or a local
+    # Telegram bot (optional): token from @BotFather, when the evening summary and loan
+    # payment reminders are sent and in which timezone that time is. The API URL can point to a mirror/proxy or a local
     # telegram-bot-api server when api.telegram.org is unreachable.
     telegram_bot_token: str | None = None
     telegram_api_url: str = "https://api.telegram.org"
     telegram_bot_username: str | None = None
     telegram_summary_time: str = "21:00"
+    telegram_reminder_time: str = "10:00"
     telegram_timezone: str = "Europe/Moscow"
 
     seed_user1_email: str | None = None
